@@ -58,8 +58,9 @@ inline void decodePicture(MPEG1Data &mpg)
             backward_f_code = (buf[4] >> 3 & 0x7);
     }
     printf("\n");
-    fread(&mpg.next_start_code, 4, 1, mpg.fp);
-    while (mpg.next_start_code == 0x01010000) {
+    mpg.next_start_code = 0;
+    fread(&mpg.next_start_code, 3, 1, mpg.fp);
+    while (mpg.next_start_code == 0x00010000) {
         decodeSlice(mpg);
     }
 }
