@@ -12,6 +12,7 @@ private:
     static const int BUFSIZE = 4096;
     uint8_t buf[BUFSIZE];
     int pos_byte, pos_bit;
+    int pos_file;
     FILE *fp = NULL;
 public:
     ~BitStream();
