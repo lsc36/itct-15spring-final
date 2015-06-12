@@ -13,10 +13,10 @@ void decodeThread()
             continue;
         }
         switch (mpg.next_start_code) {
-        case 0xb8010000:
+        case 0x000001b8:
             decodeGOP(mpg);
             break;
-        case 0xb7010000:
+        case 0x000001b7:
             finished = true;
             break;
         default:
@@ -49,10 +49,8 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
     }
 
-    mpg.fp = fopen(argv[1], "rb");
-    assert(mpg.fp != NULL);
-    fread(&mpg.next_start_code, 4, 1, mpg.fp);
-    assert(mpg.next_start_code == 0xb3010000);
+    mpg.stream.open(argv[1]);
+    assert(mpg.stream.nextbits(32) == 0x000001b3);
     decodeHeader(mpg);
 
     glutInit(&argc, argv);

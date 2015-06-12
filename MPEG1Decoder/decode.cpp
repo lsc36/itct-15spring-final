@@ -6,77 +6,69 @@ char frame_type_table[8] = { 0, 'I', 'P', 'B', 'D' };
 
 void decodeHeader(MPEG1Data &mpg)
 {
-    uint8_t buf[256];
-    fread(buf, 1, 3, mpg.fp);
-    mpg.width = buf[0] << 4 | buf[1] >> 4;
-    mpg.height = (buf[1] & 0xf) << 8 | buf[2];
+    mpg.width = mpg.stream.nextbits(12);
+    mpg.height = mpg.stream.nextbits(12);
     printf("size: %dx%d\n", mpg.width, mpg.height);
-    fread(buf, 1, 1, mpg.fp);
-    mpg.pixel_ar = pixel_ar_table[buf[0] >> 4];
-    mpg.fps = fps_table[buf[0] & 0xf];
+    mpg.pixel_ar = pixel_ar_table[mpg.stream.nextbits(4)];
+    mpg.fps = fps_table[mpg.stream.nextbits(4)];
     printf("pixel AR: %f\n", mpg.pixel_ar);
     printf("fps: %f\n", mpg.fps);
-    fread(buf, 1, 4, mpg.fp);
-    // bitrate ignored
-    if (buf[3] & 0x2) {
-        printf("Load intra Q matrix");
-        fread(&buf[4], 1, 64, mpg.fp);
-        for (int i = 0; i < 64; i++) mpg.q_intra[i] = buf[i + 3] << 7 | buf[i + 4] >> 1;
-        buf[3] = buf[67];
+    mpg.stream.nextbits(30); // bitrate ignored
+    if (mpg.stream.nextbits(1)) {
+        printf("Load intra Q matrix\n");
+        for (int i = 0; i < 64; i++) mpg.q_intra[i] = mpg.stream.nextbits(8);
     }
     else {
         for (int i = 0; i < 64; i++) mpg.q_intra[i] = 1;
     }
-    if (buf[3] & 0x1) {
-        printf("Load non-intra Q matrix");
-        fread(&mpg.q_nonintra, 1, 64, mpg.fp);
+    if (mpg.stream.nextbits(1)) {
+        printf("Load non-intra Q matrix\n");
+        for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = mpg.stream.nextbits(8);
     }
     else {
         for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = 1;
     }
-    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+    mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
 inline void decodeSlice(MPEG1Data &mpg)
 {
-    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+    mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
 inline void decodePicture(MPEG1Data &mpg)
 {
-    uint8_t buf[5];
-    fread(buf, 1, 4, mpg.fp);
-    int temp_ref = buf[0] << 2 | buf[1] >> 6;
-    char frame_type = frame_type_table[(buf[1] >> 3) & 0x7];
-    // VBV delay ignored
+    int temp_ref = mpg.stream.nextbits(10);
+    char frame_type = frame_type_table[mpg.stream.nextbits(3)];
+    mpg.stream.nextbits(16); // VBV delay ignored
     printf("Picture #%d: %c", temp_ref, frame_type);
     if (frame_type == 'P' || frame_type == 'B') {
-        fread(&buf[4], 1, 1, mpg.fp);
-        bool full_pel_forward_vector = buf[3] & 0x4,
-            full_pel_backward_vector = buf[4] & 0x40;
-        int forward_f_code = (buf[3] & 0x3) << 1 | buf[4] >> 7,
-            backward_f_code = (buf[4] >> 3 & 0x7);
+        bool full_pel_forward_vector = mpg.stream.nextbits(1);
+        int forward_f_code = mpg.stream.nextbits(3);
+        if (frame_type == 'B') {
+            bool full_pel_backward_vector = mpg.stream.nextbits(1);
+            int backward_f_code = mpg.stream.nextbits(3);
+        }
     }
     printf("\n");
-    mpg.next_start_code = 0;
-    fread(&mpg.next_start_code, 3, 1, mpg.fp);
-    while (mpg.next_start_code == 0x00010000) {
+    mpg.stream.align();
+    mpg.next_start_code = mpg.stream.nextbits(24);
+    while (mpg.next_start_code == 0x000001) {
         decodeSlice(mpg);
     }
 }
 
 void decodeGOP(MPEG1Data &mpg)
 {
-    uint8_t buf[4];
-    fread(buf, 1, 4, mpg.fp);
-    int hours = (buf[0] >> 2) & 0x1f,
-        minutes = (buf[0] & 0x3) << 4 | buf[1] >> 4,
-        seconds = (buf[1] & 0x7) << 3 | buf[2] >> 5,
-        picture = (buf[2] & 0x1f) << 1 | buf[3] >> 7;
-    bool closed_gop = buf[3] & 0x40, broken_link = buf[3] & 0x20;
+    int hours = mpg.stream.nextbits(6) & 0x1f,
+        minutes = mpg.stream.nextbits(6),
+        seconds = mpg.stream.nextbits(7) & 0x2f,
+        picture = mpg.stream.nextbits(6);
+    bool closed_gop = mpg.stream.nextbits(1), broken_link = mpg.stream.nextbits(1);
     printf("GOP timecode: %02d:%02d:%02d:%02d\n", hours, minutes, seconds, picture);
-    fread(&mpg.next_start_code, 4, 1, mpg.fp);
-    while (mpg.next_start_code == 0x00010000) {
+    mpg.stream.align();
+    mpg.next_start_code = mpg.stream.nextbits(32);
+    while (mpg.next_start_code == 0x00000100) {
         decodePicture(mpg);
     }
 }

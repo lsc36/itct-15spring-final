@@ -82,6 +82,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="bitstream.cpp" />
     <ClCompile Include="decode.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>
