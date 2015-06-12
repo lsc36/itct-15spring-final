@@ -33,7 +33,7 @@ void decodeHeader(MPEG1Data &mpg)
 
 inline void decodeMacroblock(MPEG1Data &mpg)
 {
-    mpg.stream.nextbits(8);
+    mpg.stream.nextbits(1);
 }
 
 inline void decodeSlice(MPEG1Data &mpg)
