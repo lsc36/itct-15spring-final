@@ -13,6 +13,7 @@ struct Pixel {
 
 struct MPEG1Data {
     FILE *fp;
+    uint32_t next_start_code;
     int width;
     int height;
     double pixel_ar;

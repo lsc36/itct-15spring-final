@@ -12,9 +12,7 @@ void decodeThread()
             Sleep(1);
             continue;
         }
-        uint32_t start_code;
-        fread(&start_code, sizeof(uint32_t), 1, mpg.fp);
-        switch (start_code) {
+        switch (mpg.next_start_code) {
         case 0xb8010000:
             decodeGOP(mpg);
             break;
@@ -22,7 +20,7 @@ void decodeThread()
             finished = true;
             break;
         default:
-            fprintf(stderr, "unknown start code %08x\n", start_code);
+            fprintf(stderr, "unknown start code %08x\n", mpg.next_start_code);
             exit(1);
         }
     }
@@ -53,6 +51,8 @@ int main(int argc, char **argv)
 
     mpg.fp = fopen(argv[1], "rb");
     assert(mpg.fp != NULL);
+    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+    assert(mpg.next_start_code == 0xb3010000);
     decodeHeader(mpg);
 
     glutInit(&argc, argv);

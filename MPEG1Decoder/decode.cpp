@@ -6,8 +6,6 @@ double fps_table[16] = {0.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0}
 void decodeHeader(MPEG1Data &mpg)
 {
     uint8_t buf[256];
-    fread(buf, 1, 4, mpg.fp);
-    assert(*(uint32_t*)buf == 0xb3010000);
     fread(buf, 1, 3, mpg.fp);
     mpg.width = buf[0] << 4 | buf[1] >> 4;
     mpg.height = (buf[1] & 0xf) << 8 | buf[2];
@@ -35,6 +33,7 @@ void decodeHeader(MPEG1Data &mpg)
     else {
         for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = 1;
     }
+    fread(&mpg.next_start_code, 4, 1, mpg.fp);
 }
 
 void decodeGOP(MPEG1Data &mpg)
