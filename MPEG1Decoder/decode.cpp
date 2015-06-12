@@ -31,8 +31,22 @@ void decodeHeader(MPEG1Data &mpg)
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
+inline void decodeMacroblock(MPEG1Data &mpg)
+{
+    mpg.stream.nextbits(8);
+}
+
 inline void decodeSlice(MPEG1Data &mpg)
 {
+    int vpos = mpg.next_start_code & 0xff;
+    int q_scale = mpg.stream.nextbits(5);
+    while (mpg.stream.nextbits(23, false) != 0) {
+        decodeMacroblock(mpg);
+    }
+    mpg.stream.align();
+    // XXX: remove redundant bit for test
+    if (mpg.stream.nextbits(32, false) == 0x00000001)
+        mpg.stream.nextbits(8);
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
@@ -52,8 +66,8 @@ inline void decodePicture(MPEG1Data &mpg)
     }
     printf("\n");
     mpg.stream.align();
-    mpg.next_start_code = mpg.stream.nextbits(24);
-    while (mpg.next_start_code == 0x000001) {
+    mpg.next_start_code = mpg.stream.nextbits(32);
+    while (mpg.next_start_code >= 0x00000101 && mpg.next_start_code <= 0x000001af) {
         decodeSlice(mpg);
     }
 }
