@@ -13,6 +13,9 @@ void decodeThread()
             continue;
         }
         switch (mpg.next_start_code) {
+        case 0x000001b3:
+            decodeHeader(mpg);
+            break;
         case 0x000001b8:
             decodeGOP(mpg);
             break;
