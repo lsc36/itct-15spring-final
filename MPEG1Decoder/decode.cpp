@@ -36,6 +36,23 @@ void decodeHeader(MPEG1Data &mpg)
     fread(&mpg.next_start_code, 4, 1, mpg.fp);
 }
 
+inline void decodePicture(MPEG1Data &mpg)
+{
+    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+}
+
 void decodeGOP(MPEG1Data &mpg)
 {
+    uint8_t buf[4];
+    fread(buf, 1, 4, mpg.fp);
+    int hours = (buf[0] >> 2) & 0x1f,
+        minutes = (buf[0] & 0x3) << 4 | buf[1] >> 4,
+        seconds = (buf[1] & 0x7) << 3 | buf[2] >> 5,
+        picture = (buf[2] & 0x1f) << 1 | buf[3] >> 7;
+    bool closed_gop = buf[3] & 0x40, broken_link = buf[3] & 0x20;
+    printf("GOP timecode: %02d:%02d:%02d:%02d\n", hours, minutes, seconds, picture);
+    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+    while (mpg.next_start_code == 0x00010000) {
+        decodePicture(mpg);
+    }
 }
