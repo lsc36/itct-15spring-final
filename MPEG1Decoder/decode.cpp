@@ -2,6 +2,7 @@
 
 double pixel_ar_table[16] = {0.0, 1.0, 0.6735, 0.7031, 0.7615, 0.8055, 0.8437, 0.8935, 0.9157, 0.9815, 1.0255, 1.0695, 1.095, 1.1575, 1.2051};
 double fps_table[16] = {0.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0};
+char frame_type_table[8] = { 0, 'I', 'P', 'B', 'D' };
 
 void decodeHeader(MPEG1Data &mpg)
 {
@@ -36,9 +37,31 @@ void decodeHeader(MPEG1Data &mpg)
     fread(&mpg.next_start_code, 4, 1, mpg.fp);
 }
 
-inline void decodePicture(MPEG1Data &mpg)
+inline void decodeSlice(MPEG1Data &mpg)
 {
     fread(&mpg.next_start_code, 4, 1, mpg.fp);
+}
+
+inline void decodePicture(MPEG1Data &mpg)
+{
+    uint8_t buf[5];
+    fread(buf, 1, 4, mpg.fp);
+    int temp_ref = buf[0] << 2 | buf[1] >> 6;
+    char frame_type = frame_type_table[(buf[1] >> 3) & 0x7];
+    // VBV delay ignored
+    printf("Picture #%d: %c", temp_ref, frame_type);
+    if (frame_type == 'P' || frame_type == 'B') {
+        fread(&buf[4], 1, 1, mpg.fp);
+        bool full_pel_forward_vector = buf[3] & 0x4,
+            full_pel_backward_vector = buf[4] & 0x40;
+        int forward_f_code = (buf[3] & 0x3) << 1 | buf[4] >> 7,
+            backward_f_code = (buf[4] >> 3 & 0x7);
+    }
+    printf("\n");
+    fread(&mpg.next_start_code, 4, 1, mpg.fp);
+    while (mpg.next_start_code == 0x01010000) {
+        decodeSlice(mpg);
+    }
 }
 
 void decodeGOP(MPEG1Data &mpg)
