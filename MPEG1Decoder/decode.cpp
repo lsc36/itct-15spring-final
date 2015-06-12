@@ -12,7 +12,7 @@ void decodeHeader(MPEG1Data &mpg)
     mpg.width = buf[0] << 4 | buf[1] >> 4;
     mpg.height = (buf[1] & 0xf) << 8 | buf[2];
     printf("size: %dx%d\n", mpg.width, mpg.height);
-    fread(buf, 1, 3, mpg.fp);
+    fread(buf, 1, 1, mpg.fp);
     mpg.pixel_ar = pixel_ar_table[buf[0] >> 4];
     mpg.fps = fps_table[buf[0] & 0xf];
     printf("pixel AR: %f\n", mpg.pixel_ar);
@@ -35,4 +35,8 @@ void decodeHeader(MPEG1Data &mpg)
     else {
         for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = 1;
     }
+}
+
+void decodeGOP(MPEG1Data &mpg)
+{
 }
