@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <vector>
 #include <thread>
 #include <concurrent_queue.h>
 
@@ -22,6 +23,24 @@ public:
 
 struct Pixel {
     uint8_t r, g, b;
+};
+
+struct VLCTableEntry {
+    unsigned code, len;
+};
+
+class VLCTable {
+private:
+    BitStream &m_stream;
+    std::vector<VLCTableEntry> m_table;
+    unsigned m_len = 0;
+    VLCTableEntry **m_lookup;
+    virtual void _buildTable() = 0;
+public:
+    VLCTable(BitStream &stream);
+    ~VLCTable();
+    void init();
+    unsigned get();
 };
 
 struct MPEG1Data {
