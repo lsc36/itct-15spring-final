@@ -8,7 +8,7 @@ BitStream::~BitStream()
 void BitStream::open(const char *filename)
 {
     fp = fopen(filename, "rb");
-    assert(fp != NULL);
+    if (fp == NULL) throw "error opening file";
     pos_file = fread(buf, 1, BUFSIZE, fp);
     pos_byte = 0;
     pos_bit = 7;
@@ -28,7 +28,7 @@ uint32_t BitStream::nextbits(int count, bool pop)
     while (left >= 8) {
         if (npos_byte >= pos_file) {
             pos_file += fread(buf + pos_file % BUFSIZE, 1, BUFSIZE >> 1, fp);
-            assert(npos_byte < pos_file);
+            if (npos_byte >= pos_file) throw "end of file reached";
         }
         ret = ret << 8 | buf[npos_byte % BUFSIZE];
         left -= 8;
@@ -37,7 +37,7 @@ uint32_t BitStream::nextbits(int count, bool pop)
     if (left) {
         if (npos_byte >= pos_file) {
             pos_file += fread(buf + pos_file % BUFSIZE, 1, BUFSIZE >> 1, fp);
-            assert(npos_byte < pos_file);
+            if (npos_byte >= pos_file) throw "end of file reached";
         }
         ret = ret << left | (buf[npos_byte % BUFSIZE] >> (npos_bit - left + 1) & ((1 << left) - 1));
         npos_bit -= left;

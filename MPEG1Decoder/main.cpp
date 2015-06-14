@@ -52,8 +52,17 @@ int main(int argc, char **argv)
         fprintf(stderr, "Usage: %s <filename>\n", argv[0]);
     }
 
-    mpg.stream.open(argv[1]);
-    assert(mpg.stream.nextbits(32) == 0x000001b3);
+    try {
+        mpg.stream.open(argv[1]);
+    }
+    catch (const char *msg){
+        fprintf(stderr, "Error: %s\n", msg);
+        return 1;
+    }
+    if (mpg.stream.nextbits(32) != 0x000001b3) {
+        fprintf(stderr, "Error: not an MPEG1 sequence\n");
+        return 1;
+    }
     decodeHeader(mpg);
 
     glutInit(&argc, argv);

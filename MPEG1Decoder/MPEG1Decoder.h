@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <cassert>
 #include <thread>
 #include <concurrent_queue.h>
 
