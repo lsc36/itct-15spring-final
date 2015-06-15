@@ -1,5 +1,8 @@
 #include "MPEG1Decoder.h"
 
+std::vector<VLCTableEntry> VLCTable::s_table;
+bool VLCTable::s_inited = false;
+
 VLCTable::VLCTable(BitStream &stream) : m_stream(stream) {}
 
 VLCTable::~VLCTable()
@@ -9,16 +12,18 @@ VLCTable::~VLCTable()
 
 void VLCTable::init()
 {
+    if (s_inited) return;
     _buildTable();
-    for (VLCTableEntry &entry : m_table) {
+    for (VLCTableEntry &entry : s_table) {
         if (m_len < entry.len) m_len = entry.len;
     }
     m_lookup = new VLCTableEntry*[1 << m_len];
-    for (VLCTableEntry &entry : m_table) {
+    for (VLCTableEntry &entry : s_table) {
         unsigned start = entry.code << (m_len - entry.len);
         unsigned end = start | (1 << (m_len - entry.len)) - 1;
         for (unsigned i = start; i <= end; i++) m_lookup[i] = &entry;
     }
+    s_inited = true;
 }
 
 int VLCTable::get()

@@ -32,8 +32,9 @@ struct VLCTableEntry {
 
 class VLCTable {
 private:
+    static std::vector<VLCTableEntry> s_table;
+    static bool s_inited;
     BitStream &m_stream;
-    std::vector<VLCTableEntry> m_table;
     unsigned m_len = 0;
     VLCTableEntry **m_lookup;
     virtual void _buildTable() = 0;
