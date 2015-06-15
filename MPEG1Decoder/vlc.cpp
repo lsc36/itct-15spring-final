@@ -25,5 +25,5 @@ unsigned VLCTable::get()
 {
     VLCTableEntry *entry = m_lookup[m_stream.nextbits(m_len, false)];
     m_stream.nextbits(entry->len);
-    return entry->code;
+    return entry->value;
 }

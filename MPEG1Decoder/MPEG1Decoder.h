@@ -27,6 +27,7 @@ struct Pixel {
 
 struct VLCTableEntry {
     unsigned code, len;
+    unsigned value;
 };
 
 class VLCTable {
