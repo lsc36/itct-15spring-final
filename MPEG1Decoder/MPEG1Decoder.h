@@ -36,9 +36,9 @@ private:
     BitStream &m_stream;
     unsigned m_len = 0;
     VLCTableEntry **m_lookup;
-    virtual void _buildTable() = 0;
 protected:
     static std::vector<VLCTableEntry> s_table;
+    virtual void _buildTable() = 0;
 public:
     VLCTable(BitStream &stream);
     ~VLCTable();
