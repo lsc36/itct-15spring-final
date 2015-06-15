@@ -44,6 +44,8 @@ public:
     int get();
 };
 
+#include "vlctables.h"
+
 struct MPEG1Data {
     BitStream stream;
     uint32_t next_start_code;

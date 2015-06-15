@@ -27,3 +27,41 @@ int VLCTable::get()
     m_stream.nextbits(entry->len);
     return entry->value;
 }
+
+// tables
+
+void MacroAddrIncTable::_buildTable()
+{
+}
+
+void MacroTypeITable::_buildTable()
+{
+}
+
+void MacroTypePTable::_buildTable()
+{
+}
+
+void MacroTypeBTable::_buildTable()
+{
+}
+
+void CodedBlockPatternTable::_buildTable()
+{
+}
+
+void MotionVectorTable::_buildTable()
+{
+}
+
+void DCTDCSizeLumaTable::_buildTable()
+{
+}
+
+void DCTDCSizeChromaTable::_buildTable()
+{
+}
+
+void DCTCoeffTable::_buildTable()
+{
+}
