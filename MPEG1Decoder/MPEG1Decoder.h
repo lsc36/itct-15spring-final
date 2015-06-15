@@ -27,7 +27,7 @@ struct Pixel {
 
 struct VLCTableEntry {
     unsigned code, len;
-    unsigned value;
+    int value;
 };
 
 class VLCTable {
@@ -41,7 +41,7 @@ public:
     VLCTable(BitStream &stream);
     ~VLCTable();
     void init();
-    unsigned get();
+    int get();
 };
 
 struct MPEG1Data {

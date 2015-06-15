@@ -21,7 +21,7 @@ void VLCTable::init()
     }
 }
 
-unsigned VLCTable::get()
+int VLCTable::get()
 {
     VLCTableEntry *entry = m_lookup[m_stream.nextbits(m_len, false)];
     m_stream.nextbits(entry->len);
