@@ -69,6 +69,7 @@ struct SliceData {
     int vpos;
     int q_scale;
     int last_mb_addr;
+    int last_intra_addr;
     int dc_predictor[3]; // Y, Cr, Cb
 };
 
