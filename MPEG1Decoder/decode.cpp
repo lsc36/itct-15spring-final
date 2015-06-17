@@ -38,8 +38,8 @@ inline void decodeMacroblock(MPEG1Data &mpg)
 
 inline void decodeSlice(MPEG1Data &mpg)
 {
-    int vpos = mpg.next_start_code & 0xff;
-    int q_scale = mpg.stream.nextbits(5);
+    mpg.cur_slice.vpos = mpg.next_start_code & 0xff;
+    mpg.cur_slice.q_scale = mpg.stream.nextbits(5);
     while (mpg.stream.nextbits(23, false) != 0) {
         decodeMacroblock(mpg);
     }
@@ -56,12 +56,18 @@ inline void decodePicture(MPEG1Data &mpg)
     char frame_type = frame_type_table[mpg.stream.nextbits(3)];
     mpg.stream.nextbits(16); // VBV delay ignored
     printf("Picture #%d: %c", temp_ref, frame_type);
+    mpg.cur_picture.temp_ref = temp_ref;
+    mpg.cur_picture.type = frame_type;
     if (frame_type == 'P' || frame_type == 'B') {
-        bool full_pel_forward_vector = mpg.stream.nextbits(1);
+        mpg.cur_picture.full_pel_forward = mpg.stream.nextbits(1);
         int forward_f_code = mpg.stream.nextbits(3);
+        mpg.cur_picture.forward_f = 1 << (forward_f_code - 1);
+        mpg.cur_picture.forward_f_size = forward_f_code - 1;
         if (frame_type == 'B') {
-            bool full_pel_backward_vector = mpg.stream.nextbits(1);
+            mpg.cur_picture.full_pel_backward = mpg.stream.nextbits(1);
             int backward_f_code = mpg.stream.nextbits(3);
+            mpg.cur_picture.backward_f = 1 << (backward_f_code - 1);
+            mpg.cur_picture.backward_f_size = backward_f_code - 1;
         }
     }
     printf("\n");

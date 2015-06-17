@@ -48,6 +48,20 @@ public:
 
 #include "vlctables.h"
 
+struct PictureData {
+    int temp_ref;
+    char type;
+    bool full_pel_forward;
+    int forward_f, forward_f_size;
+    bool full_pel_backward;
+    int backward_f, backward_f_size;
+};
+
+struct SliceData {
+    int vpos;
+    int q_scale;
+};
+
 struct MPEG1Data {
     BitStream stream;
     uint32_t next_start_code;
@@ -58,6 +72,8 @@ struct MPEG1Data {
     uint8_t q_intra[64];
     uint8_t q_nonintra[64];
     concurrency::concurrent_queue<Pixel*> frames;
+    PictureData cur_picture;
+    SliceData cur_slice;
     MPEG1Data();
 };
 
