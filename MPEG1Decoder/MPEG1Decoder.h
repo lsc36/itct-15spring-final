@@ -68,6 +68,17 @@ struct PictureData {
 struct SliceData {
     int vpos;
     int q_scale;
+    int last_mb_addr;
+};
+
+struct MacroblockData {
+    int addr;
+    bool quant;
+    bool motion_forward;
+    bool motion_backward;
+    bool pattern;
+    bool intra;
+    int q_scale;
 };
 
 struct MPEG1Data {
@@ -75,6 +86,8 @@ struct MPEG1Data {
     uint32_t next_start_code;
     int width;
     int height;
+    int width_mb;
+    int height_mb;
     double pixel_ar;
     double fps;
     uint8_t q_intra[64];
@@ -82,6 +95,7 @@ struct MPEG1Data {
     concurrency::concurrent_queue<Pixel*> frames;
     PictureData cur_picture;
     SliceData cur_slice;
+    MacroblockData cur_mb;
     MPEG1Data();
 };
 

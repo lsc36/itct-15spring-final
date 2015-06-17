@@ -8,6 +8,8 @@ void decodeHeader(MPEG1Data &mpg)
 {
     mpg.width = mpg.stream.nextbits(12);
     mpg.height = mpg.stream.nextbits(12);
+    mpg.width_mb = (mpg.width - 1) / 16 + 1;
+    mpg.height_mb = (mpg.height - 1) / 16 + 1;
     printf("size: %dx%d\n", mpg.width, mpg.height);
     mpg.pixel_ar = pixel_ar_table[mpg.stream.nextbits(4)];
     mpg.fps = fps_table[mpg.stream.nextbits(4)];
@@ -31,22 +33,57 @@ void decodeHeader(MPEG1Data &mpg)
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
+inline void decodeBlock(MPEG1Data &mpg, int id)
+{
+    // TODO
+}
+
 inline void decodeMacroblock(MPEG1Data &mpg)
 {
-    mpg.stream.nextbits(1);
+    int tmp;
+    do {
+        // ignore stuffing and escape
+        tmp = Tables::macro_addrinc.get();
+    } while (tmp < 0);
+    mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr + tmp;
+    mpg.cur_slice.last_mb_addr = mpg.cur_mb.addr;
+    printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width, mpg.cur_mb.addr % mpg.width);
+    switch (mpg.cur_picture.type) {
+    case 'I': tmp = Tables::macro_I.get(); break;
+    case 'P': tmp = Tables::macro_P.get(); break;
+    case 'B': tmp = Tables::macro_B.get(); break;
+    default: throw "picture type not supported";
+    }
+    mpg.cur_mb.quant = tmp & 1 << 4;
+    mpg.cur_mb.motion_forward = tmp & 1 << 3;
+    mpg.cur_mb.motion_backward = tmp & 1 << 2;
+    mpg.cur_mb.pattern = tmp & 1 << 1;
+    mpg.cur_mb.intra = tmp & 1;
+    mpg.cur_mb.q_scale = mpg.cur_mb.quant ? mpg.stream.nextbits(5) : mpg.cur_slice.q_scale;
+    if (mpg.cur_mb.motion_forward) {
+        // TODO: P, B
+    }
+    if (mpg.cur_mb.motion_backward) {
+        // TODO: B
+    }
+    int pattern = 0x2f;
+    if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
+    for (int i = 0; i < 6; i++)
+        if (pattern & 1 << (5 - i)) decodeBlock(mpg, i);
 }
 
 inline void decodeSlice(MPEG1Data &mpg)
 {
     mpg.cur_slice.vpos = mpg.next_start_code & 0xff;
     mpg.cur_slice.q_scale = mpg.stream.nextbits(5);
+    mpg.cur_slice.last_mb_addr = (mpg.cur_slice.vpos - 1) * mpg.width_mb - 1;
+    if (mpg.stream.nextbits(1)) {
+        // extra info ignored
+        mpg.stream.nextbits(8);
+    }
     while (mpg.stream.nextbits(23, false) != 0) {
         decodeMacroblock(mpg);
     }
-    mpg.stream.align();
-    // XXX: remove redundant bit for test
-    if (mpg.stream.nextbits(32, false) == 0x00000001)
-        mpg.stream.nextbits(8);
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
