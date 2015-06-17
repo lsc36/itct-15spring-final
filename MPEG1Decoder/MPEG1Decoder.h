@@ -24,6 +24,8 @@ public:
 
 struct Pixel {
     uint8_t r, g, b;
+    Pixel(uint8_t i_r, uint8_t i_g, uint8_t i_b) : r(i_r), g(i_g), b(i_b) {}
+    Pixel() : Pixel(0, 0, 0) {}
 };
 
 struct VLCTableEntry {
@@ -64,6 +66,7 @@ struct PictureData {
     int forward_f, forward_f_size;
     bool full_pel_backward;
     int backward_f, backward_f_size;
+    Pixel *buffer;
 };
 
 struct SliceData {
@@ -71,7 +74,7 @@ struct SliceData {
     int q_scale;
     int last_mb_addr;
     int last_intra_addr;
-    int dc_predictor[3]; // Y, Cr, Cb
+    int dc_predictor[3]; // Y, Cb, Cr
 };
 
 struct MacroblockData {
@@ -82,6 +85,7 @@ struct MacroblockData {
     bool pattern;
     bool intra;
     int q_scale;
+    int block[6][64];
 };
 
 struct MPEG1Data {
@@ -104,6 +108,8 @@ struct MPEG1Data {
 
 void decodeHeader(MPEG1Data &mpg);
 void decodeGOP(MPEG1Data &mpg);
+
+void idct(int *b);
 
 // utils
 

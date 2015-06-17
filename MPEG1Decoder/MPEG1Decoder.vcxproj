@@ -83,6 +83,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bitstream.cpp" />
+    <ClCompile Include="dct.cpp" />
     <ClCompile Include="decode.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="struct.cpp" />

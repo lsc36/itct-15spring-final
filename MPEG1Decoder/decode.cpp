@@ -4,6 +4,7 @@ double pixel_ar_table[16] = {0.0, 1.0, 0.6735, 0.7031, 0.7615, 0.8055, 0.8437, 0
 double fps_table[16] = {0.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0};
 char frame_type_table[8] = { 0, 'I', 'P', 'B', 'D' };
 int block_comp[6] = { 0, 0, 0, 0, 1, 2 };
+int scan[64] = { 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 12, 17, 25, 30, 41, 43, 9, 11, 18, 24, 31, 40, 44, 53, 10, 19, 23, 32, 39, 45, 52, 54, 20, 22, 33, 38, 46, 51, 55, 60, 21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63 };
 
 void decodeHeader(MPEG1Data &mpg)
 {
@@ -67,6 +68,8 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
             if (!block_zz & 1) block_zz[i] -= sign(block_zz[i]);
             block_zz[i] = clip(block_zz[i], -2048, 2047);
         }
+        for (int i = 0; i < 64; i++) mpg.cur_mb.block[id][i] = block_zz[scan[i]];
+        idct(mpg.cur_mb.block[id]);
     }
 }
 
@@ -81,7 +84,7 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     } while (tmp < 0);
     mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr + tmp + n_escape * 33;
     mpg.cur_slice.last_mb_addr = mpg.cur_mb.addr;
-    printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width_mb, mpg.cur_mb.addr % mpg.width_mb);
+    //printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width_mb, mpg.cur_mb.addr % mpg.width_mb);
     switch (mpg.cur_picture.type) {
     case 'I': tmp = Tables::macro_I.get(); break;
     case 'P': tmp = Tables::macro_P.get(); break;
@@ -108,6 +111,25 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
     for (int i = 0; i < 6; i++)
         if (pattern & 1 << (5 - i)) decodeBlock(mpg, i);
+    int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
+        base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
+    for (int i = 0; i < 16 && base_x + i < mpg.height; i++) {
+        for (int j = 0; j < 16 && base_y + j < mpg.width; j++) {
+            int Y_id = 0;
+            if (i >= 8 && j >= 8) Y_id = 3;
+            else if (i >= 8) Y_id = 2;
+            else if (j >= 8) Y_id = 1;
+            int Y = mpg.cur_mb.block[Y_id][(i % 8) * 8 + j % 8],
+                Cb = mpg.cur_mb.block[4][(i / 2) * 8 + (j / 2)],
+                Cr = mpg.cur_mb.block[5][(i / 2) * 8 + (j / 2)];
+            int R = clip((int)round(Y + 1.402 * (Cr - 128.0)), 0, 255),
+                G = clip((int)round(Y - 0.34414 * (Cb - 128.0) - 0.71414 * (Cr - 128.0)), 0, 255),
+                B = clip((int)round(Y + 1.772 * (Cb - 128.0)), 0, 255);
+            int x = mpg.height - (base_x + i) - 1,
+                y = base_y + j;
+            mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R, G, B);
+        }
+    }
 }
 
 inline void decodeSlice(MPEG1Data &mpg)
@@ -116,7 +138,6 @@ inline void decodeSlice(MPEG1Data &mpg)
     mpg.cur_slice.q_scale = mpg.stream.nextbits(5);
     mpg.cur_slice.last_mb_addr = (mpg.cur_slice.vpos - 1) * mpg.width_mb - 1;
     mpg.cur_slice.last_intra_addr = -2;
-    mpg.cur_slice.dc_predictor[0] = mpg.cur_slice.dc_predictor[1] = mpg.cur_slice.dc_predictor[2] = 1024;
     while (mpg.stream.nextbits(1)) {
         // extra info ignored
         mpg.stream.nextbits(8);
@@ -149,11 +170,13 @@ inline void decodePicture(MPEG1Data &mpg)
         }
     }
     printf("\n");
+    mpg.cur_picture.buffer = new Pixel[mpg.width * mpg.height];
     mpg.stream.align();
     mpg.next_start_code = mpg.stream.nextbits(32);
     while (mpg.next_start_code >= 0x00000101 && mpg.next_start_code <= 0x000001af) {
         decodeSlice(mpg);
     }
+    mpg.frames.push(mpg.cur_picture.buffer);
 }
 
 void decodeGOP(MPEG1Data &mpg)
