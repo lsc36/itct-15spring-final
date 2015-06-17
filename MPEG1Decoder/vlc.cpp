@@ -388,7 +388,6 @@ static inline void build_dct_coeff_common(std::vector<VLCTableEntry> &s_table)
         s_table.push_back(entry);
     }
 
-    ADDENTRY(s_table, 10, -1); // EOB
     ADDENTRY(s_table, 000001, -2); // escape
 }
 
@@ -396,7 +395,7 @@ static inline void build_dct_coeff_first(VLCTable &vlc)
 {
     std::vector<VLCTableEntry> s_table;
     build_dct_coeff_common(s_table);
-    //ADDENTRY(s_table, 10, 0x0001); // ???
+    ADDENTRY(s_table, 10, 0x0001);
     ADDENTRY(s_table, 11, 0x00ff);
     vlc.buildTable(s_table);
 }
@@ -405,6 +404,7 @@ static inline void build_dct_coeff_next(VLCTable &vlc)
 {
     std::vector<VLCTableEntry> s_table;
     build_dct_coeff_common(s_table);
+    ADDENTRY(s_table, 10, -1); // EOB
     ADDENTRY(s_table, 110, 0x0001);
     ADDENTRY(s_table, 111, 0x00ff);
     vlc.buildTable(s_table);
