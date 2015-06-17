@@ -1,35 +1,33 @@
 #include "MPEG1Decoder.h"
 
-std::vector<VLCTableEntry> VLCTable::s_table;
-bool VLCTable::s_inited = false;
-
-VLCTable::VLCTable(BitStream &stream) : m_stream(stream) {}
-
 VLCTable::~VLCTable()
 {
     if (m_lookup != NULL) delete m_lookup;
 }
 
-void VLCTable::init()
+void VLCTable::setStream(BitStream &stream)
 {
-    if (s_inited) return;
-    _buildTable();
-    for (VLCTableEntry &entry : s_table) {
+    m_stream = &stream;
+}
+
+void VLCTable::buildTable(std::vector<VLCTableEntry> &table)
+{
+    m_len = 0;
+    for (VLCTableEntry &entry : table) {
         if (m_len < entry.len) m_len = entry.len;
     }
-    m_lookup = new VLCTableEntry*[1 << m_len];
-    for (VLCTableEntry &entry : s_table) {
+    m_lookup = new VLCTableEntry[1 << m_len];
+    for (VLCTableEntry &entry : table) {
         unsigned start = entry.code << (m_len - entry.len);
         unsigned end = start | (1 << (m_len - entry.len)) - 1;
-        for (unsigned i = start; i <= end; i++) m_lookup[i] = &entry;
+        for (unsigned i = start; i <= end; i++) m_lookup[i] = entry;
     }
-    s_inited = true;
 }
 
 int VLCTable::get()
 {
-    VLCTableEntry *entry = m_lookup[m_stream.nextbits(m_len, false)];
-    m_stream.nextbits(entry->len);
+    VLCTableEntry *entry = &m_lookup[m_stream->nextbits(m_len, false)];
+    m_stream->nextbits(entry->len);
     return entry->value;
 }
 
@@ -51,8 +49,9 @@ static inline unsigned binlen(const char *s)
     return ret;
 }
 
-void MacroAddrIncTable::_buildTable()
+static inline void build_macro_addrinc(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 1, 1);
     ADDENTRY(s_table, 011, 2);
     ADDENTRY(s_table, 010, 3);
@@ -88,16 +87,20 @@ void MacroAddrIncTable::_buildTable()
     ADDENTRY(s_table, 00000011000, 33);
     ADDENTRY(s_table, 00000001111, -1); // macroblock_stuffing
     ADDENTRY(s_table, 00000001000, -2); // macroblock_escape
+    vlc.buildTable(s_table);
 }
 
-void MacroTypeITable::_buildTable()
+static inline void build_macro_I(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 1, 0x01);
     ADDENTRY(s_table, 01, 0x11);
+    vlc.buildTable(s_table);
 }
 
-void MacroTypePTable::_buildTable()
+static inline void build_macro_P(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 1, 0x0a);
     ADDENTRY(s_table, 01, 0x02);
     ADDENTRY(s_table, 001, 0x08);
@@ -105,10 +108,12 @@ void MacroTypePTable::_buildTable()
     ADDENTRY(s_table, 00010, 0x1a);
     ADDENTRY(s_table, 00001, 0x12);
     ADDENTRY(s_table, 000001, 0x11);
+    vlc.buildTable(s_table);
 }
 
-void MacroTypeBTable::_buildTable()
+static inline void build_macro_B(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 10, 0x0c);
     ADDENTRY(s_table, 11, 0x0e);
     ADDENTRY(s_table, 010, 0x04);
@@ -120,10 +125,12 @@ void MacroTypeBTable::_buildTable()
     ADDENTRY(s_table, 000011, 0x1a);
     ADDENTRY(s_table, 000010, 0x16);
     ADDENTRY(s_table, 000001, 0x11);
+    vlc.buildTable(s_table);
 }
 
-void CodedBlockPatternTable::_buildTable()
+static inline void build_cbp(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 111, 60);
     ADDENTRY(s_table, 1101, 4);
     ADDENTRY(s_table, 1100, 8);
@@ -187,10 +194,12 @@ void CodedBlockPatternTable::_buildTable()
     ADDENTRY(s_table, 000000100, 59);
     ADDENTRY(s_table, 000000011, 27);
     ADDENTRY(s_table, 000000010, 39);
+    vlc.buildTable(s_table);
 }
 
-void MotionVectorTable::_buildTable()
+static inline void build_mv(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 00000011001, -16);
     ADDENTRY(s_table, 00000011011, -15);
     ADDENTRY(s_table, 00000011101, -14);
@@ -224,10 +233,12 @@ void MotionVectorTable::_buildTable()
     ADDENTRY(s_table, 00000011100, 14);
     ADDENTRY(s_table, 00000011010, 15);
     ADDENTRY(s_table, 00000011000, 16);
+    vlc.buildTable(s_table);
 }
 
-void DCTDCSizeLumaTable::_buildTable()
+static inline void build_dct_dc_luma(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 100, 0);
     ADDENTRY(s_table, 00, 1);
     ADDENTRY(s_table, 01, 2);
@@ -237,10 +248,12 @@ void DCTDCSizeLumaTable::_buildTable()
     ADDENTRY(s_table, 11110, 6);
     ADDENTRY(s_table, 111110, 7);
     ADDENTRY(s_table, 1111110, 8);
+    vlc.buildTable(s_table);
 }
 
-void DCTDCSizeChromaTable::_buildTable()
+static inline void build_dct_dc_chroma(VLCTable &vlc)
 {
+    std::vector<VLCTableEntry> s_table;
     ADDENTRY(s_table, 00, 0);
     ADDENTRY(s_table, 01, 1);
     ADDENTRY(s_table, 10, 2);
@@ -250,9 +263,10 @@ void DCTDCSizeChromaTable::_buildTable()
     ADDENTRY(s_table, 111110, 6);
     ADDENTRY(s_table, 1111110, 7);
     ADDENTRY(s_table, 11111110, 8);
+    vlc.buildTable(s_table);
 }
 
-void DCTCoeffTable::_buildTable()
+static inline void build_dct_coeff_common(std::vector<VLCTableEntry> &s_table)
 {
     std::vector<VLCTableEntry> table;
 
@@ -378,18 +392,47 @@ void DCTCoeffTable::_buildTable()
     ADDENTRY(s_table, 000001, -2); // escape
 }
 
-void DCTCoeffFirstTable::_buildTable()
+static inline void build_dct_coeff_first(VLCTable &vlc)
 {
-    DCTCoeffTable::_buildTable();
-    s_table.push_back({ 0x2, 2, 0x0001 });
-    s_table.push_back({ 0x3, 2, 0x00ff });
+    std::vector<VLCTableEntry> s_table;
+    build_dct_coeff_common(s_table);
     //ADDENTRY(s_table, 10, 0x0001); // ???
     ADDENTRY(s_table, 11, 0x00ff);
+    vlc.buildTable(s_table);
 }
 
-void DCTCoeffNextTable::_buildTable()
+static inline void build_dct_coeff_next(VLCTable &vlc)
 {
-    DCTCoeffTable::_buildTable();
+    std::vector<VLCTableEntry> s_table;
+    build_dct_coeff_common(s_table);
     ADDENTRY(s_table, 110, 0x0001);
     ADDENTRY(s_table, 111, 0x00ff);
+    vlc.buildTable(s_table);
+}
+
+VLCTable Tables::macro_addrinc;
+VLCTable Tables::macro_I;
+VLCTable Tables::macro_P;
+VLCTable Tables::macro_B;
+VLCTable Tables::cbp;
+VLCTable Tables::mv;
+VLCTable Tables::dct_dc_luma;
+VLCTable Tables::dct_dc_chroma;
+VLCTable Tables::dct_coeff_first;
+VLCTable Tables::dct_coeff_next;
+
+#define INIT_TABLE(table) { table.setStream(stream); build_##table(table); }
+
+void Tables::initTables(BitStream &stream)
+{
+    INIT_TABLE(macro_addrinc)
+    INIT_TABLE(macro_I)
+    INIT_TABLE(macro_P)
+    INIT_TABLE(macro_B)
+    INIT_TABLE(cbp)
+    INIT_TABLE(mv)
+    INIT_TABLE(dct_dc_luma)
+    INIT_TABLE(dct_dc_chroma)
+    INIT_TABLE(dct_coeff_first)
+    INIT_TABLE(dct_coeff_next)
 }

@@ -35,8 +35,5 @@
     <ClInclude Include="MPEG1Decoder.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="vlctables.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

@@ -32,21 +32,29 @@ struct VLCTableEntry {
 
 class VLCTable {
 private:
-    static bool s_inited;
-    BitStream &m_stream;
+    BitStream *m_stream;
     unsigned m_len = 0;
-    VLCTableEntry **m_lookup;
-protected:
-    static std::vector<VLCTableEntry> s_table;
-    virtual void _buildTable() = 0;
+    VLCTableEntry *m_lookup = NULL;
 public:
-    VLCTable(BitStream &stream);
     ~VLCTable();
-    void init();
+    void setStream(BitStream &stream);
+    void buildTable(std::vector<VLCTableEntry> &table);
     int get();
 };
 
-#include "vlctables.h"
+struct Tables {
+    static VLCTable macro_addrinc;
+    static VLCTable macro_I;
+    static VLCTable macro_P;
+    static VLCTable macro_B;
+    static VLCTable cbp;
+    static VLCTable mv;
+    static VLCTable dct_dc_luma;
+    static VLCTable dct_dc_chroma;
+    static VLCTable dct_coeff_first;
+    static VLCTable dct_coeff_next;
+    static void initTables(BitStream &stream);
+};
 
 struct PictureData {
     int temp_ref;
