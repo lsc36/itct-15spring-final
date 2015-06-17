@@ -40,14 +40,14 @@ int VLCTable::get()
 static inline unsigned bin2int(const char *s)
 {
     unsigned ret = 0;
-    for (; *s == '0' && *s == '1'; s++) ret = ret << 1 | *s - '0';
+    for (; *s == '0' || *s == '1'; s++) ret = ret << 1 | *s - '0';
     return ret;
 }
 
 static inline unsigned binlen(const char *s)
 {
     unsigned ret = 0;
-    for (; *s == '0' && *s == '1'; s++, ret++);
+    for (; *s == '0' || *s == '1'; s++, ret++);
     return ret;
 }
 
