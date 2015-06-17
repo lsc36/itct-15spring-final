@@ -97,6 +97,7 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     mpg.cur_mb.pattern = tmp & 1 << 1;
     mpg.cur_mb.intra = tmp & 1;
     mpg.cur_mb.q_scale = mpg.cur_mb.quant ? mpg.stream.nextbits(5) : mpg.cur_slice.q_scale;
+    mpg.cur_slice.q_scale = mpg.cur_mb.q_scale;
     if (!mpg.cur_mb.intra || mpg.cur_mb.addr - mpg.cur_slice.last_intra_addr > 1) {
         mpg.cur_slice.dc_predictor[0] = mpg.cur_slice.dc_predictor[1] = mpg.cur_slice.dc_predictor[2] = 1024;
     }
