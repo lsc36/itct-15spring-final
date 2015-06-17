@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <vector>
+#include <algorithm>
 #include <thread>
 #include <concurrent_queue.h>
 
@@ -103,3 +104,18 @@ struct MPEG1Data {
 
 void decodeHeader(MPEG1Data &mpg);
 void decodeGOP(MPEG1Data &mpg);
+
+// utils
+
+inline int sign(int n)
+{
+    if (n > 0) return 1;
+    if (n < 0) return -1;
+    return 0;
+}
+
+template<typename T>
+inline T clip(T n, T lower, T upper)
+{
+    return std::min(std::max(n, lower), upper);
+}

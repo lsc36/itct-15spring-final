@@ -40,12 +40,12 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
             diff = mpg.stream.nextbits(size);
             if (diff < 1 << (size - 1)) diff -= (1 << size) - 1;
         }
-        block_zz[0] = mpg.cur_slice.dc_predictor[block_comp[id]] + diff;
+        block_zz[0] = mpg.cur_slice.dc_predictor[block_comp[id]] + 8 * diff;
+        mpg.cur_slice.dc_predictor[block_comp[id]] = block_zz[0];
     }
     else{
         // TODO: P, B
     }
-    mpg.cur_slice.dc_predictor[block_comp[id]] = block_zz[0];
     int run_level, pos = 0;
     while ((run_level = Tables::dct_coeff_next.get()) != -1) { // EOB
         int run, level;
@@ -60,6 +60,13 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
         }
         pos += run + 1;
         block_zz[pos] = level;
+    }
+    if (mpg.cur_mb.intra) {
+        for (int i = 1; i < 64; i++) {
+            block_zz[i] = (2 * block_zz[i] * mpg.cur_mb.q_scale * mpg.q_intra[i]) / 16;
+            if (!block_zz & 1) block_zz[i] -= sign(block_zz[i]);
+            block_zz[i] = clip(block_zz[i], -2048, 2047);
+        }
     }
 }
 
