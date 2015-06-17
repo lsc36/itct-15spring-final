@@ -21,15 +21,9 @@ void decodeHeader(MPEG1Data &mpg)
         printf("Load intra Q matrix\n");
         for (int i = 0; i < 64; i++) mpg.q_intra[i] = mpg.stream.nextbits(8);
     }
-    else {
-        for (int i = 0; i < 64; i++) mpg.q_intra[i] = 1;
-    }
     if (mpg.stream.nextbits(1)) {
         printf("Load non-intra Q matrix\n");
         for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = mpg.stream.nextbits(8);
-    }
-    else {
-        for (int i = 0; i < 64; i++) mpg.q_nonintra[i] = 1;
     }
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
