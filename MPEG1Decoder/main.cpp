@@ -20,6 +20,7 @@ void decodeThread()
             decodeGOP(mpg);
             break;
         case 0x000001b7:
+            printf("decode finished\n");
             finished = true;
             break;
         default:

@@ -3,6 +3,7 @@
 double pixel_ar_table[16] = {0.0, 1.0, 0.6735, 0.7031, 0.7615, 0.8055, 0.8437, 0.8935, 0.9157, 0.9815, 1.0255, 1.0695, 1.095, 1.1575, 1.2051};
 double fps_table[16] = {0.0, 23.976, 24.0, 25.0, 29.97, 30.0, 50.0, 59.94, 60.0};
 char frame_type_table[8] = { 0, 'I', 'P', 'B', 'D' };
+int block_comp[6] = { 0, 0, 0, 0, 1, 2 };
 
 void decodeHeader(MPEG1Data &mpg)
 {
@@ -35,7 +36,37 @@ void decodeHeader(MPEG1Data &mpg)
 
 inline void decodeBlock(MPEG1Data &mpg, int id)
 {
-    // TODO
+    int block_zz[64];
+    std::fill_n(block_zz, 64, 0);
+    if (mpg.cur_mb.intra) {
+        int size, diff = 0;
+        if (id < 4) size = Tables::dct_dc_luma.get();
+        else size = Tables::dct_dc_chroma.get();
+        if (size) {
+            diff = mpg.stream.nextbits(size);
+            if (diff < 1 << (size - 1)) diff -= (1 << size) - 1;
+        }
+        block_zz[0] = mpg.cur_slice.dc_predictor[block_comp[id]] + diff;
+    }
+    else{
+        // TODO: P, B
+    }
+    mpg.cur_slice.dc_predictor[block_comp[id]] = block_zz[0];
+    int run_level, pos = 0;
+    while ((run_level = Tables::dct_coeff_next.get()) != -1) { // EOB
+        int run, level;
+        if (run_level == -2) {
+            run = mpg.stream.nextbits(6);
+            level = (char)mpg.stream.nextbits(8);
+            if (level == 0 || level == 0xffffff80) level = level << 1 | mpg.stream.nextbits(8);
+        }
+        else{
+            run = run_level >> 8;
+            level = (char)run_level;
+        }
+        pos += run + 1;
+        block_zz[pos] = level;
+    }
 }
 
 inline void decodeMacroblock(MPEG1Data &mpg)
@@ -47,7 +78,7 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     } while (tmp < 0);
     mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr + tmp;
     mpg.cur_slice.last_mb_addr = mpg.cur_mb.addr;
-    printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width, mpg.cur_mb.addr % mpg.width);
+    printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width_mb, mpg.cur_mb.addr % mpg.width_mb);
     switch (mpg.cur_picture.type) {
     case 'I': tmp = Tables::macro_I.get(); break;
     case 'P': tmp = Tables::macro_P.get(); break;
@@ -66,7 +97,7 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     if (mpg.cur_mb.motion_backward) {
         // TODO: B
     }
-    int pattern = 0x2f;
+    int pattern = 0x3f;
     if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
     for (int i = 0; i < 6; i++)
         if (pattern & 1 << (5 - i)) decodeBlock(mpg, i);
@@ -77,13 +108,15 @@ inline void decodeSlice(MPEG1Data &mpg)
     mpg.cur_slice.vpos = mpg.next_start_code & 0xff;
     mpg.cur_slice.q_scale = mpg.stream.nextbits(5);
     mpg.cur_slice.last_mb_addr = (mpg.cur_slice.vpos - 1) * mpg.width_mb - 1;
-    if (mpg.stream.nextbits(1)) {
+    mpg.cur_slice.dc_predictor[0] = mpg.cur_slice.dc_predictor[1] = mpg.cur_slice.dc_predictor[2] = 1024;
+    while (mpg.stream.nextbits(1)) {
         // extra info ignored
         mpg.stream.nextbits(8);
     }
     while (mpg.stream.nextbits(23, false) != 0) {
         decodeMacroblock(mpg);
     }
+    mpg.stream.align();
     mpg.next_start_code = mpg.stream.nextbits(32);
 }
 
