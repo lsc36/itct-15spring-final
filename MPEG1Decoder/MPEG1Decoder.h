@@ -58,6 +58,7 @@ struct MPEG1Data {
     uint8_t q_intra[64];
     uint8_t q_nonintra[64];
     concurrency::concurrent_queue<Pixel*> frames;
+    MPEG1Data();
 };
 
 void decodeHeader(MPEG1Data &mpg);

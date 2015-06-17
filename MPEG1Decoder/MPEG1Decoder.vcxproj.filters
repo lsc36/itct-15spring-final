@@ -27,6 +27,9 @@
     <ClCompile Include="vlc.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="struct.cpp">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MPEG1Decoder.h">

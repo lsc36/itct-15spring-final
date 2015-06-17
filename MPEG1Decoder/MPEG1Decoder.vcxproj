@@ -85,6 +85,7 @@
     <ClCompile Include="bitstream.cpp" />
     <ClCompile Include="decode.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="struct.cpp" />
     <ClCompile Include="vlc.cpp" />
   </ItemGroup>
   <ItemGroup>
