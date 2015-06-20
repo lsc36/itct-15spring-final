@@ -1,8 +1,9 @@
 #include <cstdio>
 #include <vector>
+#include <queue>
 #include <algorithm>
 #include <thread>
-#include <concurrent_queue.h>
+#include <mutex>
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
@@ -99,7 +100,8 @@ struct MPEG1Data {
     double fps;
     uint8_t q_intra[64];
     uint8_t q_nonintra[64];
-    concurrency::concurrent_queue<Pixel*> frames;
+    std::queue<Pixel*> frames;
+    std::mutex mtx_frames;
     PictureData cur_picture;
     SliceData cur_slice;
     MacroblockData cur_mb;

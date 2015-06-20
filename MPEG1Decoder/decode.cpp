@@ -177,7 +177,9 @@ inline void decodePicture(MPEG1Data &mpg)
     while (mpg.next_start_code >= 0x00000101 && mpg.next_start_code <= 0x000001af) {
         decodeSlice(mpg);
     }
+    mpg.mtx_frames.lock();
     mpg.frames.push(mpg.cur_picture.buffer);
+    mpg.mtx_frames.unlock();
 }
 
 void decodeGOP(MPEG1Data &mpg)

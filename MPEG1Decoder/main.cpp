@@ -32,7 +32,13 @@ void decodeThread()
 
 void fetchFrame(int value)
 {
-    if (mpg.frames.try_pop(currentFrame)) glutPostRedisplay();
+    mpg.mtx_frames.lock();
+    if (!mpg.frames.empty()) {
+        currentFrame = mpg.frames.front();
+        mpg.frames.pop();
+        glutPostRedisplay();
+    }
+    mpg.mtx_frames.unlock();
     glutTimerFunc(1000 / mpg.fps, fetchFrame, 0);
 }
 
