@@ -22,6 +22,12 @@ void decodeThread()
         case 0x000001b7:
             printf("decode finished\n");
             finished = true;
+            if (mpg.forward_ref != NULL) delete[] mpg.forward_ref;
+            if (mpg.backward_ref != NULL) {
+                mpg.mtx_frames.lock();
+                mpg.frames.push(mpg.backward_ref);
+                mpg.mtx_frames.unlock();
+            }
             break;
         default:
             fprintf(stderr, "unknown start code %08x\n", mpg.next_start_code);

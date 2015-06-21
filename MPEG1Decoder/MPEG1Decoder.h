@@ -27,6 +27,7 @@ struct Pixel {
     uint8_t r, g, b;
     Pixel(uint8_t i_r, uint8_t i_g, uint8_t i_b) : r(i_r), g(i_g), b(i_b) {}
     Pixel() : Pixel(0, 0, 0) {}
+    inline void diff(int dr, int dg, int db);
 };
 
 struct VLCTableEntry {
@@ -76,6 +77,8 @@ struct SliceData {
     int last_mb_addr;
     int last_intra_addr;
     int dc_predictor[3]; // Y, Cb, Cr
+    int recon_right_for_prev, recon_down_for_prev;
+    int recon_right_back_prev, recon_down_back_prev;
 };
 
 struct MacroblockData {
@@ -105,6 +108,7 @@ struct MPEG1Data {
     PictureData cur_picture;
     SliceData cur_slice;
     MacroblockData cur_mb;
+    Pixel *forward_ref = NULL, *backward_ref = NULL;
     MPEG1Data();
 };
 
@@ -126,4 +130,11 @@ template<typename T>
 inline T clip(T n, T lower, T upper)
 {
     return std::min(std::max(n, lower), upper);
+}
+
+inline void Pixel::diff(int dr, int dg, int db)
+{
+    r = clip(r + dr, 0, 255);
+    g = clip(g + dg, 0, 255);
+    b = clip(b + db, 0, 255);
 }
