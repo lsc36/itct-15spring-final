@@ -33,6 +33,7 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
 {
     int block_zz[64];
     std::fill_n(block_zz, 64, 0);
+    int run_level, run, level, pos = 0;
     if (mpg.cur_mb.intra) {
         int size, diff = 0;
         if (id < 4) size = Tables::dct_dc_luma.get();
@@ -45,11 +46,20 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
         mpg.cur_slice.dc_predictor[block_comp[id]] = block_zz[0];
     }
     else{
-        // TODO: P, B
+        run_level = Tables::dct_coeff_first.get();
+        if (run_level == -2) {
+            run = mpg.stream.nextbits(6);
+            level = (char)mpg.stream.nextbits(8);
+            if (level == 0 || level == 0xffffff80) level = level << 1 | mpg.stream.nextbits(8);
+        }
+        else{
+            run = run_level >> 8;
+            level = (char)run_level;
+        }
+        pos = run;
+        block_zz[pos] = level;
     }
-    int run_level, pos = 0;
     while ((run_level = Tables::dct_coeff_next.get()) != -1) { // EOB
-        int run, level;
         if (run_level == -2) {
             run = mpg.stream.nextbits(6);
             level = (char)mpg.stream.nextbits(8);
@@ -102,13 +112,33 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         mpg.cur_slice.dc_predictor[0] = mpg.cur_slice.dc_predictor[1] = mpg.cur_slice.dc_predictor[2] = 1024;
     }
     if (mpg.cur_mb.intra) mpg.cur_slice.last_intra_addr = mpg.cur_mb.addr;
+    // motion vectors
+    int forward_h_code, forward_h_r,
+        forward_v_code, forward_v_r;
     if (mpg.cur_mb.motion_forward) {
-        // TODO: P, B
+        forward_h_code = Tables::mv.get();
+        if (mpg.cur_picture.forward_f != 1 && forward_h_code != 0) {
+            forward_h_r = mpg.stream.nextbits(mpg.cur_picture.forward_r_size);
+        }
+        forward_v_code = Tables::mv.get();
+        if (mpg.cur_picture.forward_f != 1 && forward_v_code != 0) {
+            forward_v_r = mpg.stream.nextbits(mpg.cur_picture.forward_r_size);
+        }
     }
+    int backward_h_code, backward_h_r,
+        backward_v_code, backward_v_r;
     if (mpg.cur_mb.motion_backward) {
-        // TODO: B
+        backward_h_code = Tables::mv.get();
+        if (mpg.cur_picture.backward_f != 1 && backward_h_code != 0) {
+            backward_h_r = mpg.stream.nextbits(mpg.cur_picture.backward_r_size);
+        }
+        backward_v_code = Tables::mv.get();
+        if (mpg.cur_picture.backward_f != 1 && backward_v_code != 0) {
+            backward_v_r = mpg.stream.nextbits(mpg.cur_picture.backward_r_size);
+        }
     }
-    int pattern = 0x3f;
+    // coded block pattern
+    int pattern = mpg.cur_mb.intra ? 0x3f : 0;
     if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
     for (int i = 0; i < 6; i++)
         if (pattern & 1 << (5 - i)) decodeBlock(mpg, i);
@@ -162,12 +192,12 @@ inline void decodePicture(MPEG1Data &mpg)
         mpg.cur_picture.full_pel_forward = mpg.stream.nextbits(1);
         int forward_f_code = mpg.stream.nextbits(3);
         mpg.cur_picture.forward_f = 1 << (forward_f_code - 1);
-        mpg.cur_picture.forward_f_size = forward_f_code - 1;
+        mpg.cur_picture.forward_r_size = forward_f_code - 1;
         if (frame_type == 'B') {
             mpg.cur_picture.full_pel_backward = mpg.stream.nextbits(1);
             int backward_f_code = mpg.stream.nextbits(3);
             mpg.cur_picture.backward_f = 1 << (backward_f_code - 1);
-            mpg.cur_picture.backward_f_size = backward_f_code - 1;
+            mpg.cur_picture.backward_r_size = backward_f_code - 1;
         }
     }
     printf("\n");

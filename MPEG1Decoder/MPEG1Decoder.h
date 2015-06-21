@@ -64,9 +64,9 @@ struct PictureData {
     int temp_ref;
     char type;
     bool full_pel_forward;
-    int forward_f, forward_f_size;
+    int forward_f, forward_r_size;
     bool full_pel_backward;
-    int backward_f, backward_f_size;
+    int backward_f, backward_r_size;
     Pixel *buffer;
 };
 
