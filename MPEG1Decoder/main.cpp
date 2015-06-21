@@ -17,7 +17,19 @@ void decodeThread()
             decodeHeader(mpg);
             break;
         case 0x000001b8:
-            decodeGOP(mpg);
+            try {
+                decodeGOP(mpg);
+            }
+            catch (const char *msg) {
+                fprintf(stderr, "%s\n", msg);
+                finished = true;
+                if (mpg.forward_ref != NULL) delete[] mpg.forward_ref;
+                if (mpg.backward_ref != NULL) {
+                    mpg.mtx_frames.lock();
+                    mpg.frames.push(mpg.backward_ref);
+                    mpg.mtx_frames.unlock();
+                }
+            }
             break;
         case 0x000001b7:
             printf("decode finished\n");
