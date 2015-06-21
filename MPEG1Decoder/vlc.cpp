@@ -2,7 +2,7 @@
 
 VLCTable::~VLCTable()
 {
-    if (m_lookup != NULL) delete m_lookup;
+    if (m_lookup != NULL) delete [] m_lookup;
 }
 
 void VLCTable::setStream(BitStream &stream)

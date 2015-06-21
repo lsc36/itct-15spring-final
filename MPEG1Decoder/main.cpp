@@ -48,7 +48,7 @@ void display()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glDrawPixels(mpg.width, mpg.height, GL_RGB, GL_UNSIGNED_BYTE, currentFrame);
         glutSwapBuffers();
-        delete currentFrame;
+        delete [] currentFrame;
         currentFrame = NULL;
     }
 }
