@@ -100,7 +100,6 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         // ignore stuffing
     } while (tmp < 0);
     mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr + tmp + n_escape * 33;
-    mpg.cur_slice.last_mb_addr = mpg.cur_mb.addr;
     //printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width_mb, mpg.cur_mb.addr % mpg.width_mb);
     switch (mpg.cur_picture.type) {
     case 'I': tmp = Tables::macro_I.get(); break;
@@ -120,6 +119,10 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     }
     if (mpg.cur_mb.intra) mpg.cur_slice.last_intra_addr = mpg.cur_mb.addr;
     // motion vectors
+    if (mpg.cur_mb.addr - mpg.cur_slice.last_mb_addr > 1) {
+        mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev
+            = mpg.cur_slice.recon_right_back_prev = mpg.cur_slice.recon_down_back_prev = 0;
+    }
     int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
         base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
     int right_little, right_big, down_little, down_big,
@@ -237,6 +240,7 @@ inline void decodeMacroblock(MPEG1Data &mpg)
             }
         }
     }
+    mpg.cur_slice.last_mb_addr = mpg.cur_mb.addr;
 }
 
 inline void decodeSlice(MPEG1Data &mpg)
