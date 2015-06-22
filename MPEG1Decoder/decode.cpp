@@ -101,7 +101,20 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         if (tmp == -2) n_escape++; // escape
         // ignore stuffing
     } while (tmp < 0);
-    mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr + tmp + n_escape * 33;
+    mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr;
+    for (tmp += n_escape * 33; tmp > 1; tmp--) {
+        mpg.cur_mb.addr++;
+        int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
+            base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 16; j++) {
+                int x = mpg.height - (base_x + i) - 1,
+                    y = base_y + j;
+                mpg.cur_picture.buffer[x * mpg.width + y] = mpg.forward_ref[x * mpg.width + y];
+            }
+        }
+    }
+    mpg.cur_mb.addr++;
     //printf("Macroblock pos=(%d, %d)\n", mpg.cur_mb.addr / mpg.width_mb, mpg.cur_mb.addr % mpg.width_mb);
     switch (mpg.cur_picture.type) {
     case 'I': tmp = Tables::macro_I.get(); break;
@@ -175,6 +188,13 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         else recon_down_for = tmp - down_little + down_big;
         mpg.cur_slice.recon_down_for_prev = recon_down_for;
         if (mpg.cur_picture.full_pel_forward) recon_down_for <<= 1;
+    }
+    else {
+        recon_right_for = recon_down_for
+            = mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev = 0;
+    }
+    // TODO: B-frames
+    if (mpg.cur_picture.type == 'P') {
         // copy pixels
         int right_for = recon_right_for >> 1,
             down_for = recon_down_for >> 1;
@@ -211,25 +231,6 @@ inline void decodeMacroblock(MPEG1Data &mpg)
                 mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R / cnt, G / cnt, B / cnt);
             }
         }
-    }
-    else {
-        mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev = 0;
-    }
-    int backward_h_code, backward_h_r,
-        backward_v_code, backward_v_r;
-    if (mpg.cur_mb.motion_backward) {
-        backward_h_code = Tables::mv.get();
-        if (mpg.cur_picture.backward_f != 1 && backward_h_code != 0) {
-            backward_h_r = mpg.stream.nextbits(mpg.cur_picture.backward_r_size);
-        }
-        backward_v_code = Tables::mv.get();
-        if (mpg.cur_picture.backward_f != 1 && backward_v_code != 0) {
-            backward_v_r = mpg.stream.nextbits(mpg.cur_picture.backward_r_size);
-        }
-        // TODO
-    }
-    else {
-        mpg.cur_slice.recon_right_back_prev = mpg.cur_slice.recon_down_back_prev = 0;
     }
     // coded block pattern
     int pattern = mpg.cur_mb.intra ? 0x3f : 0;
@@ -314,7 +315,6 @@ inline void decodePicture(MPEG1Data &mpg)
         mpg.backward_ref = NULL;
     }
     mpg.cur_picture.buffer = new Pixel[mpg.width * mpg.height];
-    if (mpg.forward_ref != NULL) std::copy_n(mpg.forward_ref, mpg.width * mpg.height, mpg.cur_picture.buffer);
     mpg.stream.align();
     mpg.next_start_code = mpg.stream.nextbits(32);
     while (mpg.next_start_code >= 0x00000101 && mpg.next_start_code <= 0x000001af) {
