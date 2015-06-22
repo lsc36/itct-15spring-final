@@ -93,6 +93,8 @@ struct MacroblockData {
     bool intra;
     int q_scale;
     int block[6][64];
+    int recon_right_for, recon_down_for;
+    int recon_right_back, recon_down_back;
 };
 
 struct MPEG1Data {

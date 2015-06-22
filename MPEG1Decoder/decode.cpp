@@ -92,6 +92,93 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
     idct(mpg.cur_mb.block[id]);
 }
 
+inline void buildBlockFromMV(MPEG1Data &mpg)
+{
+    int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
+        base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
+    int right_for = mpg.cur_mb.recon_right_for >> 1,
+        down_for = mpg.cur_mb.recon_down_for >> 1;
+    bool right_half_for = mpg.cur_mb.recon_right_for - (right_for << 1),
+        down_half_for = mpg.cur_mb.recon_down_for - (down_for << 1);
+    int right_back = mpg.cur_mb.recon_right_back >> 1,
+        down_back = mpg.cur_mb.recon_down_back >> 1;
+    bool right_half_back = mpg.cur_mb.recon_right_back - (right_back << 1),
+        down_half_back = mpg.cur_mb.recon_down_back - (down_back << 1);
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 16; j++) {
+            int x = mpg.height - (base_x + i) - 1,
+                y = base_y + j;
+            int R_for = 0, G_for = 0, B_for = 0, cnt_for = 0;
+            int R_back = 0, G_back = 0, B_back = 0, cnt_back = 0;
+            if (mpg.cur_mb.motion_forward) {
+                int forx = x - down_for,
+                    fory = y + right_for;
+                R_for = mpg.forward_ref[forx * mpg.width + fory].r;
+                G_for = mpg.forward_ref[forx * mpg.width + fory].g;
+                B_for = mpg.forward_ref[forx * mpg.width + fory].b;
+                cnt_for++;
+                if (down_half_for) {
+                    R_for += mpg.forward_ref[(forx - 1) * mpg.width + fory].r;
+                    G_for += mpg.forward_ref[(forx - 1) * mpg.width + fory].g;
+                    B_for += mpg.forward_ref[(forx - 1) * mpg.width + fory].b;
+                    cnt_for++;
+                }
+                if (right_half_for) {
+                    R_for += mpg.forward_ref[forx * mpg.width + fory + 1].r;
+                    G_for += mpg.forward_ref[forx * mpg.width + fory + 1].g;
+                    B_for += mpg.forward_ref[forx * mpg.width + fory + 1].b;
+                    cnt_for++;
+                }
+                if (down_half_for && right_half_for) {
+                    R_for += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].r;
+                    G_for += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].g;
+                    B_for += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].b;
+                    cnt_for++;
+                }
+            }
+            if (mpg.cur_mb.motion_backward) {
+                int backx = x - down_back,
+                    backy = y + right_back;
+                R_back = mpg.backward_ref[backx * mpg.width + backy].r;
+                G_back = mpg.backward_ref[backx * mpg.width + backy].g;
+                B_back = mpg.backward_ref[backx * mpg.width + backy].b;
+                cnt_back++;
+                if (down_half_back) {
+                    R_back += mpg.backward_ref[(backx - 1) * mpg.width + backy].r;
+                    G_back += mpg.backward_ref[(backx - 1) * mpg.width + backy].g;
+                    B_back += mpg.backward_ref[(backx - 1) * mpg.width + backy].b;
+                    cnt_back++;
+                }
+                if (right_half_back) {
+                    R_back += mpg.backward_ref[backx * mpg.width + backy + 1].r;
+                    G_back += mpg.backward_ref[backx * mpg.width + backy + 1].g;
+                    B_back += mpg.backward_ref[backx * mpg.width + backy + 1].b;
+                    cnt_back++;
+                }
+                if (down_half_back && right_half_back) {
+                    R_back += mpg.backward_ref[(backx - 1) * mpg.width + backy + 1].r;
+                    G_back += mpg.backward_ref[(backx - 1) * mpg.width + backy + 1].g;
+                    B_back += mpg.backward_ref[(backx - 1) * mpg.width + backy + 1].b;
+                    cnt_back++;
+                }
+            }
+            int R, G, B;
+            if (cnt_back == 0) {
+                R = R_for / cnt_for; G = G_for / cnt_for; B = B_for / cnt_for;
+            }
+            else if (cnt_for == 0) {
+                R = R_back / cnt_back; G = G_back / cnt_back; B = B_back / cnt_back;
+            }
+            else {
+                R = (R_for * cnt_back + R_back * cnt_for) / (cnt_for * cnt_back * 2);
+                G = (G_for * cnt_back + G_back * cnt_for) / (cnt_for * cnt_back * 2);
+                B = (B_for * cnt_back + B_back * cnt_for) / (cnt_for * cnt_back * 2);
+            }
+            mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R, G, B);
+        }
+    }
+}
+
 inline void decodeMacroblock(MPEG1Data &mpg)
 {
     int tmp;
@@ -104,14 +191,13 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     mpg.cur_mb.addr = mpg.cur_slice.last_mb_addr;
     for (tmp += n_escape * 33; tmp > 1; tmp--) {
         mpg.cur_mb.addr++;
-        int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
-            base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
-        for (int i = 0; i < 16; i++) {
-            for (int j = 0; j < 16; j++) {
-                int x = mpg.height - (base_x + i) - 1,
-                    y = base_y + j;
-                mpg.cur_picture.buffer[x * mpg.width + y] = mpg.forward_ref[x * mpg.width + y];
-            }
+        if (mpg.cur_picture.type == 'P') {
+            mpg.cur_mb.recon_right_for = mpg.cur_mb.recon_down_for
+                = mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev = 0;
+            buildBlockFromMV(mpg);
+        }
+        else if (mpg.cur_picture.type == 'B') {
+            buildBlockFromMV(mpg);
         }
     }
     mpg.cur_mb.addr++;
@@ -134,14 +220,18 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     }
     if (mpg.cur_mb.intra) mpg.cur_slice.last_intra_addr = mpg.cur_mb.addr;
     // motion vectors
-    if (mpg.cur_mb.addr - mpg.cur_slice.last_mb_addr > 1) {
+    if (mpg.cur_picture.type == 'B' && mpg.cur_mb.intra) {
         mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev
             = mpg.cur_slice.recon_right_back_prev = mpg.cur_slice.recon_down_back_prev = 0;
     }
+
     int base_x = (mpg.cur_mb.addr / mpg.width_mb) * 16,
         base_y = (mpg.cur_mb.addr % mpg.width_mb) * 16;
-    int right_little, right_big, down_little, down_big,
-        recon_right_for, recon_down_for, mmax, mmin;
+    int mmax, mmin;
+    int right_little, right_big, down_little, down_big;
+
+    // forward vector
+    int recon_right_for = 0, recon_down_for = 0;
     if (mpg.cur_mb.motion_forward) {
         int forward_h_code, comp_forward_h_r = 0,
             forward_v_code, comp_forward_v_r = 0;
@@ -189,49 +279,70 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         mpg.cur_slice.recon_down_for_prev = recon_down_for;
         if (mpg.cur_picture.full_pel_forward) recon_down_for <<= 1;
     }
-    else {
+    else if (mpg.cur_picture.type == 'P') {
         recon_right_for = recon_down_for
             = mpg.cur_slice.recon_right_for_prev = mpg.cur_slice.recon_down_for_prev = 0;
+        mpg.cur_mb.motion_forward = true;
     }
-    // TODO: B-frames
-    if (mpg.cur_picture.type == 'P') {
-        // copy pixels
-        int right_for = recon_right_for >> 1,
-            down_for = recon_down_for >> 1;
-        bool right_half_for = recon_right_for - (right_for << 1),
-            down_half_for = recon_down_for - (down_for << 1);
-        for (int i = 0; i < 16; i++) {
-            for (int j = 0; j < 16; j++) {
-                int x = mpg.height - (base_x + i) - 1,
-                    y = base_y + j;
-                int forx = mpg.height - (base_x + i + down_for) - 1,
-                    fory = base_y + j + right_for;
-                int R = mpg.forward_ref[forx * mpg.width + fory].r,
-                    G = mpg.forward_ref[forx * mpg.width + fory].g,
-                    B = mpg.forward_ref[forx * mpg.width + fory].b,
-                    cnt = 1;
-                if (down_half_for) {
-                    R += mpg.forward_ref[(forx - 1) * mpg.width + fory].r;
-                    G += mpg.forward_ref[(forx - 1) * mpg.width + fory].g;
-                    B += mpg.forward_ref[(forx - 1) * mpg.width + fory].b;
-                    cnt++;
-                }
-                if (right_half_for) {
-                    R += mpg.forward_ref[forx * mpg.width + fory + 1].r;
-                    G += mpg.forward_ref[forx * mpg.width + fory + 1].g;
-                    B += mpg.forward_ref[forx * mpg.width + fory + 1].b;
-                    cnt++;
-                }
-                if (down_half_for && right_half_for) {
-                    R += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].r;
-                    G += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].g;
-                    B += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].b;
-                    cnt++;
-                }
-                mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R / cnt, G / cnt, B / cnt);
-            }
+    mpg.cur_mb.recon_right_for = recon_right_for;
+    mpg.cur_mb.recon_down_for = recon_down_for;
+
+    // backward vector
+    int recon_right_back = 0, recon_down_back = 0;
+    if (mpg.cur_mb.motion_backward) {
+        int backward_h_code, comp_backward_h_r = 0,
+            backward_v_code, comp_backward_v_r = 0;
+        backward_h_code = Tables::mv.get();
+        if (mpg.cur_picture.backward_f != 1 && backward_h_code != 0) {
+            tmp = mpg.stream.nextbits(mpg.cur_picture.backward_r_size); // motion_horizontal_backward_r
+            comp_backward_h_r = mpg.cur_picture.backward_f - 1 - tmp;
         }
+        backward_v_code = Tables::mv.get();
+        if (mpg.cur_picture.backward_f != 1 && backward_v_code != 0) {
+            tmp = mpg.stream.nextbits(mpg.cur_picture.backward_r_size); // motion_vertical_backward_r
+            comp_backward_v_r = mpg.cur_picture.backward_f - 1 - tmp;
+        }
+        // start video 2.4.4.2
+        right_little = backward_h_code * mpg.cur_picture.backward_f;
+        if (right_little > 0) {
+            right_little -= comp_backward_h_r;
+            right_big = right_little - 32 * mpg.cur_picture.backward_f;
+        }
+        else if (right_little < 0) {
+            right_little += comp_backward_h_r;
+            right_big = right_little + 32 * mpg.cur_picture.backward_f;
+        }
+        else right_big = 0;
+        down_little = backward_v_code * mpg.cur_picture.backward_f;
+        if (down_little > 0) {
+            down_little -= comp_backward_v_r;
+            down_big = down_little - 32 * mpg.cur_picture.backward_f;
+        }
+        else if (down_little < 0) {
+            down_little += comp_backward_v_r;
+            down_big = down_little + 32 * mpg.cur_picture.backward_f;
+        }
+        else down_big = 0;
+        mmax = (mpg.cur_picture.backward_f << 4) - 1;
+        mmin = -(mpg.cur_picture.backward_f << 4);
+        tmp = mpg.cur_slice.recon_right_back_prev + right_little;
+        if (mmin <= tmp && tmp <= mmax) recon_right_back = tmp;
+        else recon_right_back = tmp - right_little + right_big;
+        mpg.cur_slice.recon_right_back_prev = recon_right_back;
+        if (mpg.cur_picture.full_pel_backward) recon_right_back <<= 1;
+        tmp = mpg.cur_slice.recon_down_back_prev + down_little;
+        if (mmin <= tmp && tmp <= mmax) recon_down_back = tmp;
+        else recon_down_back = tmp - down_little + down_big;
+        mpg.cur_slice.recon_down_back_prev = recon_down_back;
+        if (mpg.cur_picture.full_pel_backward) recon_down_back <<= 1;
     }
+    mpg.cur_mb.recon_right_back = recon_right_back;
+    mpg.cur_mb.recon_down_back = recon_down_back;
+
+    if (!mpg.cur_mb.intra) {
+        buildBlockFromMV(mpg);
+    }
+
     // coded block pattern
     int pattern = mpg.cur_mb.intra ? 0x3f : 0;
     if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
