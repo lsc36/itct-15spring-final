@@ -102,6 +102,8 @@ struct MPEG1Data {
     int height;
     int width_mb;
     int height_mb;
+    int width_orig;
+    int height_orig;
     double pixel_ar;
     double fps;
     uint8_t q_intra[64];

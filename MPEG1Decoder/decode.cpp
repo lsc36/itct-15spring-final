@@ -8,11 +8,13 @@ int scan[64] = { 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 
 
 void decodeHeader(MPEG1Data &mpg)
 {
-    mpg.width = mpg.stream.nextbits(12);
-    mpg.height = mpg.stream.nextbits(12);
-    mpg.width_mb = (mpg.width - 1) / 16 + 1;
-    mpg.height_mb = (mpg.height - 1) / 16 + 1;
-    printf("size: %dx%d\n", mpg.width, mpg.height);
+    mpg.width_orig = mpg.stream.nextbits(12);
+    mpg.height_orig = mpg.stream.nextbits(12);
+    mpg.width_mb = (mpg.width_orig - 1) / 16 + 1;
+    mpg.height_mb = (mpg.height_orig - 1) / 16 + 1;
+    mpg.width = mpg.width_mb * 16;
+    mpg.height = mpg.height_mb * 16;
+    printf("size: %dx%d (%dx%d)\n", mpg.width, mpg.height, mpg.width_orig, mpg.height_orig);
     mpg.pixel_ar = pixel_ar_table[mpg.stream.nextbits(4)];
     mpg.fps = fps_table[mpg.stream.nextbits(4)];
     printf("pixel AR: %f\n", mpg.pixel_ar);
@@ -174,37 +176,37 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         mpg.cur_slice.recon_down_for_prev = recon_down_for;
         if (mpg.cur_picture.full_pel_forward) recon_down_for <<= 1;
         // copy pixels
-        bool right_half_for = recon_right_for & 1,
-            down_half_for = recon_down_for & 1;
-        for (int i = 0; i < 16 && base_x + i < mpg.height; i++) {
-            for (int j = 0; j < 16 && base_y + j < mpg.width; j++) {
+        int right_for = recon_right_for >> 1,
+            down_for = recon_down_for >> 1;
+        bool right_half_for = recon_right_for - (right_for << 1),
+            down_half_for = recon_down_for - (down_for << 1);
+        for (int i = 0; i < 16; i++) {
+            for (int j = 0; j < 16; j++) {
                 int x = mpg.height - (base_x + i) - 1,
                     y = base_y + j;
-                int forx = mpg.height - (base_x + i + recon_down_for / 2) - 1,
-                    fory = base_y + j + recon_right_for / 2;
-                int R = 0, G = 0, B = 0, cnt = 1;
-                if (0 <= forx && forx < mpg.height && 0 <= fory && fory < mpg.width) {
-                    R = mpg.forward_ref[forx * mpg.width + fory].r;
-                    G = mpg.forward_ref[forx * mpg.width + fory].g;
-                    B = mpg.forward_ref[forx * mpg.width + fory].b;
-                    if (down_half_for && forx - 1 >= 0) {
-                        R += mpg.forward_ref[(forx - 1) * mpg.width + fory].r;
-                        G += mpg.forward_ref[(forx - 1) * mpg.width + fory].g;
-                        B += mpg.forward_ref[(forx - 1) * mpg.width + fory].b;
-                        cnt++;
-                    }
-                    if (right_half_for && fory + 1 < mpg.width) {
-                        R += mpg.forward_ref[forx * mpg.width + fory + 1].r;
-                        G += mpg.forward_ref[forx * mpg.width + fory + 1].g;
-                        B += mpg.forward_ref[forx * mpg.width + fory + 1].b;
-                        cnt++;
-                    }
-                    if (down_half_for && right_half_for && cnt == 3) {
-                        R += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].r;
-                        G += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].g;
-                        B += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].b;
-                        cnt++;
-                    }
+                int forx = mpg.height - (base_x + i + down_for) - 1,
+                    fory = base_y + j + right_for;
+                int R = mpg.forward_ref[forx * mpg.width + fory].r,
+                    G = mpg.forward_ref[forx * mpg.width + fory].g,
+                    B = mpg.forward_ref[forx * mpg.width + fory].b,
+                    cnt = 1;
+                if (down_half_for) {
+                    R += mpg.forward_ref[(forx - 1) * mpg.width + fory].r;
+                    G += mpg.forward_ref[(forx - 1) * mpg.width + fory].g;
+                    B += mpg.forward_ref[(forx - 1) * mpg.width + fory].b;
+                    cnt++;
+                }
+                if (right_half_for) {
+                    R += mpg.forward_ref[forx * mpg.width + fory + 1].r;
+                    G += mpg.forward_ref[forx * mpg.width + fory + 1].g;
+                    B += mpg.forward_ref[forx * mpg.width + fory + 1].b;
+                    cnt++;
+                }
+                if (down_half_for && right_half_for) {
+                    R += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].r;
+                    G += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].g;
+                    B += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].b;
+                    cnt++;
                 }
                 mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R / cnt, G / cnt, B / cnt);
             }
@@ -234,8 +236,8 @@ inline void decodeMacroblock(MPEG1Data &mpg)
     if (mpg.cur_mb.pattern) pattern = Tables::cbp.get();
     for (int i = 0; i < 6; i++)
         if (pattern & 1 << (5 - i)) decodeBlock(mpg, i);
-    for (int i = 0; i < 16 && base_x + i < mpg.height; i++) {
-        for (int j = 0; j < 16 && base_y + j < mpg.width; j++) {
+    for (int i = 0; i < 16; i++) {
+        for (int j = 0; j < 16; j++) {
             int Y_id = 0;
             if (i >= 8 && j >= 8) Y_id = 3;
             else if (i >= 8) Y_id = 2;
