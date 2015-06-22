@@ -1,16 +1,16 @@
 #include "MPEG1Decoder.h"
-#include <GL\glut.h>
+#include <GL/glut.h>
 
 MPEG1Data mpg;
 Pixel *currentFrame;
-bool pause = false;
+bool pause_ = false;
 
 void decodeThread()
 {
     bool finished = false;
     while (true) {
         if (finished) {
-            Sleep(1);
+            usleep(1000);
             continue;
         }
         switch (mpg.next_start_code) {
@@ -58,7 +58,7 @@ void fetchFrame(int value)
         glutPostRedisplay();
     }
     mpg.mtx_frames.unlock();
-    if (pause) return;
+    if (pause_) return;
     glutTimerFunc(1000 / mpg.fps, fetchFrame, 0);
 }
 
@@ -76,12 +76,12 @@ void display()
 void mouseClick(int button, int state, int x, int y)
 {
     if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
-        if (pause) {
-            pause = false;
+        if (pause_) {
+            pause_ = false;
             fetchFrame(0);
         }
         else {
-            pause = true;
+            pause_ = true;
         }
     }
 }
