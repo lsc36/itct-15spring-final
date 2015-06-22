@@ -3,6 +3,7 @@
 
 MPEG1Data mpg;
 Pixel *currentFrame;
+bool pause = false;
 
 void decodeThread()
 {
@@ -57,6 +58,7 @@ void fetchFrame(int value)
         glutPostRedisplay();
     }
     mpg.mtx_frames.unlock();
+    if (pause) return;
     glutTimerFunc(1000 / mpg.fps, fetchFrame, 0);
 }
 
@@ -68,6 +70,19 @@ void display()
         glutSwapBuffers();
         delete [] currentFrame;
         currentFrame = NULL;
+    }
+}
+
+void mouseClick(int button, int state, int x, int y)
+{
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        if (pause) {
+            pause = false;
+            fetchFrame(0);
+        }
+        else {
+            pause = true;
+        }
     }
 }
 
@@ -99,6 +114,7 @@ int main(int argc, char **argv)
 
     glutDisplayFunc(display);
     glutTimerFunc(1000 / mpg.fps, fetchFrame, 0);
+    glutMouseFunc(mouseClick);
 
     std::thread t_decode(decodeThread);
     glutMainLoop();

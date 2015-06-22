@@ -310,7 +310,7 @@ inline void decodePicture(MPEG1Data &mpg)
         mpg.mtx_frames.lock();
         while (mpg.frames.size() > 2 * mpg.fps) {
             mpg.mtx_frames.unlock();
-            printf("decoding too fast, sleep...\n");
+            printf("frame queue full, sleep...\n");
             Sleep(1000);
             mpg.mtx_frames.lock();
         }
