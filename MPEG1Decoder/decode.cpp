@@ -174,16 +174,39 @@ inline void decodeMacroblock(MPEG1Data &mpg)
         mpg.cur_slice.recon_down_for_prev = recon_down_for;
         if (mpg.cur_picture.full_pel_forward) recon_down_for <<= 1;
         // copy pixels
+        bool right_half_for = recon_right_for & 1,
+            down_half_for = recon_down_for & 1;
         for (int i = 0; i < 16 && base_x + i < mpg.height; i++) {
             for (int j = 0; j < 16 && base_y + j < mpg.width; j++) {
                 int x = mpg.height - (base_x + i) - 1,
                     y = base_y + j;
                 int forx = mpg.height - (base_x + i + recon_down_for / 2) - 1,
                     fory = base_y + j + recon_right_for / 2;
-                if (0 <= forx && forx < mpg.height && 0 <= fory && fory < mpg.width)
-                    mpg.cur_picture.buffer[x * mpg.width + y] = mpg.forward_ref[forx * mpg.width + fory];
-                else
-                    mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(0, 0, 0);
+                int R = 0, G = 0, B = 0, cnt = 1;
+                if (0 <= forx && forx < mpg.height && 0 <= fory && fory < mpg.width) {
+                    R = mpg.forward_ref[forx * mpg.width + fory].r;
+                    G = mpg.forward_ref[forx * mpg.width + fory].g;
+                    B = mpg.forward_ref[forx * mpg.width + fory].b;
+                    if (down_half_for && forx + 1 < mpg.height) {
+                        R += mpg.forward_ref[(forx + 1) * mpg.width + fory].r;
+                        G += mpg.forward_ref[(forx + 1) * mpg.width + fory].g;
+                        B += mpg.forward_ref[(forx + 1) * mpg.width + fory].b;
+                        cnt++;
+                    }
+                    if (right_half_for && fory + 1 < mpg.width) {
+                        R += mpg.forward_ref[forx * mpg.width + fory + 1].r;
+                        G += mpg.forward_ref[forx * mpg.width + fory + 1].g;
+                        B += mpg.forward_ref[forx * mpg.width + fory + 1].b;
+                        cnt++;
+                    }
+                    if (down_half_for && right_half_for && cnt == 3) {
+                        R += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].r;
+                        G += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].g;
+                        B += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].b;
+                        cnt++;
+                    }
+                }
+                mpg.cur_picture.buffer[x * mpg.width + y] = Pixel(R / cnt, G / cnt, B / cnt);
             }
         }
     }
