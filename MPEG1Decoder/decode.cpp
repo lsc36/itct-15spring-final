@@ -187,10 +187,10 @@ inline void decodeMacroblock(MPEG1Data &mpg)
                     R = mpg.forward_ref[forx * mpg.width + fory].r;
                     G = mpg.forward_ref[forx * mpg.width + fory].g;
                     B = mpg.forward_ref[forx * mpg.width + fory].b;
-                    if (down_half_for && forx + 1 < mpg.height) {
-                        R += mpg.forward_ref[(forx + 1) * mpg.width + fory].r;
-                        G += mpg.forward_ref[(forx + 1) * mpg.width + fory].g;
-                        B += mpg.forward_ref[(forx + 1) * mpg.width + fory].b;
+                    if (down_half_for && forx - 1 >= 0) {
+                        R += mpg.forward_ref[(forx - 1) * mpg.width + fory].r;
+                        G += mpg.forward_ref[(forx - 1) * mpg.width + fory].g;
+                        B += mpg.forward_ref[(forx - 1) * mpg.width + fory].b;
                         cnt++;
                     }
                     if (right_half_for && fory + 1 < mpg.width) {
@@ -200,9 +200,9 @@ inline void decodeMacroblock(MPEG1Data &mpg)
                         cnt++;
                     }
                     if (down_half_for && right_half_for && cnt == 3) {
-                        R += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].r;
-                        G += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].g;
-                        B += mpg.forward_ref[(forx + 1) * mpg.width + fory + 1].b;
+                        R += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].r;
+                        G += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].g;
+                        B += mpg.forward_ref[(forx - 1) * mpg.width + fory + 1].b;
                         cnt++;
                     }
                 }
