@@ -83,8 +83,8 @@ inline void decodeBlock(MPEG1Data &mpg, int id)
     }
     else {
         for (int i = 0; i < 64; i++) {
-            block_zz[i] = ((2 * block_zz[i]) + sign(block_zz[i]) * mpg.cur_mb.q_scale * mpg.q_nonintra[i]) / 16;
-            if (!block_zz & 1) block_zz[i] -= sign(block_zz[i]);
+            block_zz[i] = (2 * block_zz[i] + sign(block_zz[i])) * mpg.cur_mb.q_scale * mpg.q_nonintra[i] / 16;
+            if (!(block_zz[i] & 1)) block_zz[i] -= sign(block_zz[i]);
             block_zz[i] = clip(block_zz[i], -2048, 2047);
          }
     }
