@@ -1,4 +1,6 @@
-#include <cstdio>
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <vector>
 #include <queue>
 #include <algorithm>
@@ -116,6 +118,8 @@ struct MPEG1Data {
     SliceData cur_slice;
     MacroblockData cur_mb;
     Pixel *forward_ref = NULL, *backward_ref = NULL;
+    bool verbose = true;
+    bool terminate = false;
     MPEG1Data();
 };
 
@@ -144,4 +148,14 @@ inline void Pixel::diff(int dr, int dg, int db)
     r = clip(r + dr, 0, 255);
     g = clip(g + dg, 0, 255);
     b = clip(b + db, 0, 255);
+}
+
+inline void trim(std::string &str)
+{
+    int pos;
+    pos = str.find_first_not_of(" \t\r\n");
+    if (pos != std::string::npos) str.substr(pos).swap(str);
+    else { str = ""; return; }
+    pos = str.find_last_not_of(" \t\r\n");
+    if (pos != std::string::npos) str.substr(0, pos + 1).swap(str);
 }

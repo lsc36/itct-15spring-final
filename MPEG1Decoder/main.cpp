@@ -4,11 +4,14 @@
 MPEG1Data mpg;
 Pixel *currentFrame;
 bool pause = false;
+std::thread *t_decode = NULL;
+std::thread *t_cli = NULL;
 
 void decodeThread()
 {
     bool finished = false;
     while (true) {
+        if (mpg.terminate) break;
         if (finished) {
             Sleep(1);
             continue;
@@ -86,6 +89,49 @@ void mouseClick(int button, int state, int x, int y)
     }
 }
 
+void printCommands()
+{
+    std::cout
+        << "Commands:\n"
+        << "v: verbose mode (press enter to quit)\n"
+        << "q: quit program\n"
+        ;
+    std::cout.flush();
+}
+
+void cliThread()
+{
+    std::string buf, cmd;
+    std::getline(std::cin, buf);
+    mpg.verbose = false;
+    printCommands();
+    while (true) {
+        std::cout << ">>> ";
+        std::getline(std::cin, buf);
+        if (std::cin.eof()) break;
+        trim(buf);
+        if (buf == "") continue;
+        printf("%d\n", buf.size());
+        std::stringstream ss(buf);
+        ss >> cmd;
+        if (cmd == "v") {
+            mpg.verbose = true;
+            std::getline(std::cin, cmd);
+            mpg.verbose = false;
+        }
+        else if (cmd == "q") {
+            break;
+        }
+        else {
+            std::cout << "Unknown command " << cmd << std::endl;
+            printCommands();
+        }
+    }
+    mpg.terminate = true;
+    t_decode->join();
+    exit(0);
+}
+
 int main(int argc, char **argv)
 {
     if (argc != 2) {
@@ -116,7 +162,8 @@ int main(int argc, char **argv)
     glutTimerFunc(1000 / mpg.fps, fetchFrame, 0);
     glutMouseFunc(mouseClick);
 
-    std::thread t_decode(decodeThread);
+    t_decode = new std::thread(decodeThread);
+    t_cli = new std::thread(cliThread);
     glutMainLoop();
 
     return 0;
