@@ -199,6 +199,7 @@ int main(int argc, char **argv)
     decodeHeader(mpg);
     Tables::initTables(mpg.stream);
 
+    mpg.verbose = false;
     decodeGOPIndex(mpg);
     try {
         while (mpg.next_start_code != 0x000001b7) {
@@ -211,6 +212,7 @@ int main(int argc, char **argv)
     }
     mpg.stream.setpos(0);
     mpg.next_start_code = mpg.stream.nextbits(32);
+    mpg.verbose = true;
 
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
