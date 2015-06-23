@@ -56,3 +56,16 @@ void BitStream::align()
         pos_bit = 7;
     }
 }
+
+int BitStream::getpos()
+{
+    return pos_byte << 3 | (7 - pos_bit);
+}
+
+void BitStream::setpos(int newpos)
+{
+    pos_byte = newpos >> 3;
+    pos_bit = 7 - (newpos & 0x7);
+    fseek(fp, pos_byte / BUFSIZE * BUFSIZE, SEEK_SET);
+    pos_file = pos_byte / BUFSIZE * BUFSIZE + fread(buf, 1, BUFSIZE, fp);
+}

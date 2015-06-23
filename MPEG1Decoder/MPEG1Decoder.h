@@ -26,6 +26,8 @@ public:
     void open(const char *filename);
     uint32_t nextbits(int count, bool pop = true);
     void align();
+    int getpos();
+    void setpos(int newpos);
 };
 
 struct Pixel {
@@ -120,11 +122,18 @@ struct MPEG1Data {
     Pixel *forward_ref = NULL, *backward_ref = NULL;
     bool verbose = true;
     bool terminate = false;
+    bool seeking = false;
+    bool was_seeking = false;
+    bool decoding = false;
+    std::vector<int> index;
+    int last_frame_id = 0;
+    int base_frame_id = 0;
     MPEG1Data();
 };
 
 void decodeHeader(MPEG1Data &mpg);
 void decodeGOP(MPEG1Data &mpg);
+void decodeGOPIndex(MPEG1Data &mpg);
 
 void idct(int *b);
 
