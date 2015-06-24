@@ -1,4 +1,6 @@
-#include <cstdio>
+#include <iostream>
+#include <sstream>
+#include <string>
 #include <vector>
 #include <queue>
 #include <algorithm>
@@ -22,6 +24,8 @@ public:
     void open(const char *filename);
     uint32_t nextbits(int count, bool pop = true);
     void align();
+    int getpos();
+    void setpos(int newpos);
 };
 
 struct Pixel {
@@ -114,11 +118,20 @@ struct MPEG1Data {
     SliceData cur_slice;
     MacroblockData cur_mb;
     Pixel *forward_ref = NULL, *backward_ref = NULL;
+    bool verbose = true;
+    bool terminate = false;
+    bool seeking = false;
+    bool was_seeking = false;
+    bool decoding = false;
+    std::vector<int> index;
+    int last_frame_id = 0;
+    int base_frame_id = 0;
     MPEG1Data();
 };
 
 void decodeHeader(MPEG1Data &mpg);
 void decodeGOP(MPEG1Data &mpg);
+void decodeGOPIndex(MPEG1Data &mpg);
 
 void idct(int *b);
 
@@ -142,4 +155,14 @@ inline void Pixel::diff(int dr, int dg, int db)
     r = clip(r + dr, 0, 255);
     g = clip(g + dg, 0, 255);
     b = clip(b + db, 0, 255);
+}
+
+inline void trim(std::string &str)
+{
+    int pos;
+    pos = str.find_first_not_of(" \t\r\n");
+    if (pos != std::string::npos) str.substr(pos).swap(str);
+    else { str = ""; return; }
+    pos = str.find_last_not_of(" \t\r\n");
+    if (pos != std::string::npos) str.substr(0, pos + 1).swap(str);
 }

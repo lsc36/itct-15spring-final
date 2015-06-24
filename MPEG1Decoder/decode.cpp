@@ -6,6 +6,8 @@ char frame_type_table[8] = { 0, 'I', 'P', 'B', 'D' };
 int block_comp[6] = { 0, 0, 0, 0, 1, 2 };
 int scan[64] = { 0, 1, 5, 6, 14, 15, 27, 28, 2, 4, 7, 13, 16, 26, 29, 42, 3, 8, 12, 17, 25, 30, 41, 43, 9, 11, 18, 24, 31, 40, 44, 53, 10, 19, 23, 32, 39, 45, 52, 54, 20, 22, 33, 38, 46, 51, 55, 60, 21, 34, 37, 47, 50, 56, 59, 61, 35, 36, 48, 49, 57, 58, 62, 63 };
 
+#define printf(...) if (mpg.verbose) printf(__VA_ARGS__)
+
 void decodeHeader(MPEG1Data &mpg)
 {
     mpg.width_orig = mpg.stream.nextbits(12);
@@ -457,6 +459,12 @@ inline void decodePicture(MPEG1Data &mpg)
 
 void decodeGOP(MPEG1Data &mpg)
 {
+    if (mpg.was_seeking) {
+        mpg.was_seeking = false;
+        mpg.next_start_code = 0x00000100;
+    }
+    else {
+
     int hours = mpg.stream.nextbits(6) & 0x1f,
         minutes = mpg.stream.nextbits(6),
         seconds = mpg.stream.nextbits(7) & 0x2f,
@@ -465,7 +473,44 @@ void decodeGOP(MPEG1Data &mpg)
     printf("GOP timecode: %02d:%02d:%02d:%02d\n", hours, minutes, seconds, picture);
     mpg.stream.align();
     mpg.next_start_code = mpg.stream.nextbits(32);
+
+    } // was_seeking
     while (mpg.next_start_code == 0x00000100) {
         decodePicture(mpg);
+        if (mpg.terminate) return;
     }
+}
+
+inline void decodePictureIndex(MPEG1Data &mpg)
+{
+    int pos = mpg.stream.getpos();
+    mpg.index.push_back(pos);
+    int temp_ref = mpg.stream.nextbits(10);
+    int frame_id = mpg.base_frame_id + temp_ref;
+    if (mpg.last_frame_id < frame_id) mpg.last_frame_id = frame_id;
+    char frame_type = frame_type_table[mpg.stream.nextbits(3)];
+    printf("%c pos=%08x\n", frame_type, pos);
+    mpg.stream.align();
+    while (true) {
+        while (mpg.stream.nextbits(24, false) != 0x000001)
+            mpg.stream.nextbits(8);
+        mpg.next_start_code = mpg.stream.nextbits(32);
+        if (!(0x00000101 <= mpg.next_start_code && mpg.next_start_code <= 0x000001af)) break;
+    }
+}
+
+void decodeGOPIndex(MPEG1Data &mpg)
+{
+    int hours = mpg.stream.nextbits(6) & 0x1f,
+        minutes = mpg.stream.nextbits(6),
+        seconds = mpg.stream.nextbits(7) & 0x2f,
+        picture = mpg.stream.nextbits(6);
+    mpg.stream.nextbits(2); // closed_gop, broken_link
+    printf("GOP timecode: %02d:%02d:%02d:%02d\n", hours, minutes, seconds, picture);
+    mpg.stream.align();
+    mpg.next_start_code = mpg.stream.nextbits(32);
+    while (mpg.next_start_code == 0x00000100) {
+        decodePictureIndex(mpg);
+    }
+    mpg.base_frame_id = mpg.last_frame_id + 1;
 }
